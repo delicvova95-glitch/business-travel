@@ -1,0 +1,16 @@
+# Описание сервиса для Render.com.
+# При создании Web Service выберите «Infrastructure as code (render.yaml)» —
+# сервис соберётся и запустится по этому файлу автоматически.
+services:
+  - type: web
+    name: business-travel
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: waitress-serve --listen=0.0.0.0:$PORT app:app
+    healthCheckPath: /
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false   # задаётся вручную в панели Render
