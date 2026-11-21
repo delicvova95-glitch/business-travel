@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <div class="container notfound">
+    <h1>404</h1>
+    {% if error_message %}
+    <p>{{ error_message }}</p>
+    {% else %}
+    <p>Такой страницы не существует. Возможно, ссылка устарела или в адресе опечатка.</p>
+    {% endif %}
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('index') }}">На главную</a>
+      <a class="btn btn-outline" href="{{ url_for('catalog') }}">Каталог туров</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

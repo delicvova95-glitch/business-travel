@@ -1,0 +1,334 @@
+"""Административная панель Business Travel: авторизация, заявки, туры, направления, настройки."""
+import os
+import time
+
+from flask import (Blueprint, abort, flash, redirect, render_template, request,
+                   session, url_for)
+from werkzeug.security import check_password_hash
+
+import db as database
+import telegram_notify
+from security import admin_login_limiter, admin_required, client_ip
+
+bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+REQUEST_STATUSES = ("new", "in_progress", "done")
+
+
+# ---------------------------------------------------------------------------
+# Авторизация
+# ---------------------------------------------------------------------------
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("admin_id"):
+        return redirect(url_for("admin.dashboard"))
+    error = None
+    if request.method == "POST":
+        if not admin_login_limiter.allow(client_ip()):
+            error = "Слишком много попыток входа. Попробуйте позже."
+        else:
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "")
+            conn = database.get_db()
+            admin = conn.execute(
+                "SELECT * FROM admins WHERE username = ?", (username,)).fetchone()
+            conn.close()
+            if admin and check_password_hash(admin["password_hash"], password):
+                session.clear()
+                session["admin_id"] = admin["id"]
+                return redirect(request.args.get("next") or url_for("admin.dashboard"))
+            time.sleep(1.5)  # замедление перебора паролей
+            error = "Неверный логин или пароль."
+    return render_template(
+        "admin/login.html",
+        error=error,
+        meta_title="Вход в панель управления — Business Travel",
+        meta_description="",
+    )
+
+
+@bp.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("admin.login"))
+
+
+# ---------------------------------------------------------------------------
+# Дашборд
+# ---------------------------------------------------------------------------
+
+@bp.route("/")
+@admin_required
+def dashboard():
+    conn = database.get_db()
+    stats = {
+        "requests_new": conn.execute(
+            "SELECT COUNT(*) AS c FROM requests WHERE status='new'").fetchone()["c"],
+        "requests_total": conn.execute(
+            "SELECT COUNT(*) AS c FROM requests").fetchone()["c"],
+        "tours_active": conn.execute(
+            "SELECT COUNT(*) AS c FROM tours WHERE status='active'").fetchone()["c"],
+        "destinations": conn.execute(
+            "SELECT COUNT(*) AS c FROM destinations").fetchone()["c"],
+    }
+    latest = conn.execute(
+        """SELECT r.*, t.title AS tour_title FROM requests r
+           LEFT JOIN tours t ON t.id = r.tour_id
+           ORDER BY r.id DESC LIMIT 10""").fetchall()
+    conn.close()
+    return render_template(
+        "admin/dashboard.html",
+        stats=stats,
+        latest=latest,
+        telegram_configured=telegram_notify.is_configured(),
+        meta_title="Панель управления — Business Travel",
+        meta_description="",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Заявки
+# ---------------------------------------------------------------------------
+
+@bp.route("/requests")
+@admin_required
+def requests_list():
+    status = request.args.get("status", "")
+    where, params = "", []
+    if status in REQUEST_STATUSES:
+        where, params = "WHERE r.status = ?", [status]
+    conn = database.get_db()
+    rows = conn.execute(
+        f"""SELECT r.*, t.title AS tour_title FROM requests r
+            LEFT JOIN tours t ON t.id = r.tour_id
+            {where} ORDER BY r.id DESC""", params).fetchall()
+    conn.close()
+    return render_template(
+        "admin/requests.html",
+        requests=rows,
+        current_status=status,
+        statuses=REQUEST_STATUSES,
+        meta_title="Заявки — Панель управления",
+        meta_description="",
+    )
+
+
+@bp.route("/requests/<int:req_id>/status", methods=["POST"])
+@admin_required
+def request_set_status(req_id):
+    status = request.form.get("status", "")
+    if status not in REQUEST_STATUSES:
+        abort(400)
+    conn = database.get_db()
+    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (status, req_id))
+    conn.commit()
+    conn.close()
+    flash("Статус заявки обновлён.")
+    return redirect(url_for("admin.requests_list"))
+
+
+@bp.route("/requests/<int:req_id>/resend-telegram", methods=["POST"])
+@admin_required
+def request_resend_telegram(req_id):
+    conn = database.get_db()
+    req = conn.execute("SELECT * FROM requests WHERE id = ?", (req_id,)).fetchone()
+    if not req:
+        conn.close()
+        abort(404)
+    tour_title = None
+    if req["tour_id"]:
+        row = conn.execute("SELECT title FROM tours WHERE id = ?", (req["tour_id"],)).fetchone()
+        tour_title = row["title"] if row else None
+    status = telegram_notify.send_request_notification(req, tour_title)
+    conn.execute(
+        "UPDATE requests SET telegram_status = ?, telegram_attempts = telegram_attempts + 1 WHERE id = ?",
+        (status, req_id),
+    )
+    conn.commit()
+    conn.close()
+    flash({"sent": "Уведомление отправлено.",
+           "failed": "Отправка не удалась — проверьте токен и доступность Telegram.",
+           "disabled": "Telegram не настроен (нет TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)."}[status])
+    return redirect(url_for("admin.requests_list"))
+
+
+# ---------------------------------------------------------------------------
+# Туры
+# ---------------------------------------------------------------------------
+
+TOUR_FIELDS = ("title", "resort", "hotel_name", "hotel_stars", "date_from", "date_to",
+               "nights", "meal_type", "departure_city", "vacation_type", "price",
+               "currency", "persons", "includes", "extra_costs", "description",
+               "payment_terms", "cancel_terms", "visa_info", "visa_info_date", "image")
+
+
+def read_tour_form(form):
+    data = {}
+    for field in TOUR_FIELDS:
+        data[field] = (form.get(field) or "").strip()
+    for field in ("hotel_stars", "nights", "price", "persons", "priority"):
+        try:
+            data[field] = int(form.get(field) or 0)
+        except ValueError:
+            data[field] = 0
+    for field in ("is_featured", "is_special", "price_needs_confirmation"):
+        data[field] = 1 if form.get(field) else 0
+    data["priority"] = data.get("priority") or 0
+    data["status"] = "active" if form.get("status") == "active" else "archived"
+    data["destination_id"] = int(form.get("destination_id") or 0)
+    if not data["title"]:
+        return None
+    return data
+
+
+@bp.route("/tours")
+@admin_required
+def tours_list():
+    conn = database.get_db()
+    rows = conn.execute(
+        """SELECT t.*, d.name AS country_name FROM tours t
+           JOIN destinations d ON d.id = t.destination_id
+           ORDER BY t.priority DESC, t.id DESC""").fetchall()
+    conn.close()
+    return render_template("admin/tours.html", tours=rows,
+                           meta_title="Туры — Панель управления", meta_description="")
+
+
+@bp.route("/tours/new", methods=["GET", "POST"])
+@admin_required
+def tour_new():
+    conn = database.get_db()
+    destinations = conn.execute("SELECT * FROM destinations ORDER BY sort_order").fetchall()
+    if request.method == "POST":
+        data = read_tour_form(request.form)
+        if not data:
+            conn.close()
+            flash("Заполните название тура.")
+            return redirect(url_for("admin.tour_new"))
+        cols = ["destination_id"] + list(TOUR_FIELDS) + [
+            "is_featured", "is_special", "price_needs_confirmation", "priority", "status"]
+        conn.execute(
+            f"INSERT INTO tours ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+            [data.get(c) for c in cols],
+        )
+        conn.commit()
+        conn.close()
+        flash("Тур создан.")
+        return redirect(url_for("admin.tours_list"))
+    conn.close()
+    return render_template("admin/tour_form.html", tour=None, destinations=destinations,
+                           meta_title="Новый тур — Панель управления", meta_description="")
+
+
+@bp.route("/tours/<int:tour_id>/edit", methods=["GET", "POST"])
+@admin_required
+def tour_edit(tour_id):
+    conn = database.get_db()
+    tour = conn.execute("SELECT * FROM tours WHERE id = ?", (tour_id,)).fetchone()
+    if not tour:
+        conn.close()
+        abort(404)
+    destinations = conn.execute("SELECT * FROM destinations ORDER BY sort_order").fetchall()
+    if request.method == "POST":
+        data = read_tour_form(request.form)
+        if not data:
+            conn.close()
+            flash("Заполните название тура.")
+            return redirect(url_for("admin.tour_edit", tour_id=tour_id))
+        cols = ["destination_id"] + list(TOUR_FIELDS) + [
+            "is_featured", "is_special", "price_needs_confirmation", "priority", "status"]
+        conn.execute(
+            f"UPDATE tours SET {', '.join(c + ' = ?' for c in cols)} WHERE id = ?",
+            [data.get(c) for c in cols] + [tour_id],
+        )
+        conn.commit()
+        conn.close()
+        flash("Тур обновлён.")
+        return redirect(url_for("admin.tours_list"))
+    conn.close()
+    return render_template("admin/tour_form.html", tour=tour, destinations=destinations,
+                           meta_title="Редактирование тура — Панель управления", meta_description="")
+
+
+@bp.route("/tours/<int:tour_id>/delete", methods=["POST"])
+@admin_required
+def tour_delete(tour_id):
+    conn = database.get_db()
+    conn.execute("UPDATE tours SET status = 'archived' WHERE id = ?", (tour_id,))
+    conn.commit()
+    conn.close()
+    flash("Тур перемещён в архив.")
+    return redirect(url_for("admin.tours_list"))
+
+
+# ---------------------------------------------------------------------------
+# Направления
+# ---------------------------------------------------------------------------
+
+@bp.route("/destinations")
+@admin_required
+def destinations_list():
+    conn = database.get_db()
+    rows = conn.execute(
+        """SELECT d.*, (SELECT COUNT(*) FROM tours t
+             WHERE t.destination_id = d.id AND t.status='active') AS tours_count
+           FROM destinations d ORDER BY d.sort_order""").fetchall()
+    conn.close()
+    return render_template("admin/destinations.html", destinations=rows,
+                           meta_title="Направления — Панель управления", meta_description="")
+
+
+@bp.route("/destinations/save", methods=["POST"])
+@admin_required
+def destination_save():
+    dest_id = request.form.get("id", type=int)
+    name = (request.form.get("name") or "").strip()
+    slug = (request.form.get("slug") or "").strip().lower()
+    description = (request.form.get("description") or "").strip()
+    image = (request.form.get("image") or "").strip()
+    is_popular = 1 if request.form.get("is_popular") else 0
+    sort_order = request.form.get("sort_order", 0, type=int)
+    if not name or not slug:
+        flash("Укажите название и slug направления.")
+        return redirect(url_for("admin.destinations_list"))
+    conn = database.get_db()
+    if dest_id:
+        conn.execute(
+            "UPDATE destinations SET name=?, slug=?, description=?, image=?, is_popular=?, sort_order=? WHERE id=?",
+            (name, slug, description, image, is_popular, sort_order, dest_id))
+        flash("Направление обновлено.")
+    else:
+        conn.execute(
+            "INSERT INTO destinations (name, slug, description, image, is_popular, sort_order) VALUES (?,?,?,?,?,?)",
+            (name, slug, description, image, is_popular, sort_order))
+        flash("Направление добавлено.")
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin.destinations_list"))
+
+
+# ---------------------------------------------------------------------------
+# Настройки (контакты)
+# ---------------------------------------------------------------------------
+
+@bp.route("/settings", methods=["GET", "POST"])
+@admin_required
+def settings_page():
+    conn = database.get_db()
+    if request.method == "POST":
+        for key in ("phone", "email", "address", "work_hours", "telegram",
+                    "legal_name", "legal_inn", "legal_ogrn", "legal_address"):
+            value = (request.form.get(key) or "").strip()
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value))
+        conn.commit()
+        flash("Настройки сохранены.")
+    rows = conn.execute("SELECT key, value FROM settings").fetchall()
+    conn.close()
+    return render_template("admin/settings.html",
+                           settings={r["key"]: r["value"] for r in rows},
+                           telegram_configured=telegram_notify.is_configured(),
+                           meta_title="Настройки — Панель управления", meta_description="")

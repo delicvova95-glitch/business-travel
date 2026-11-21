@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="admin-toolbar">
+  <h1>Туры</h1>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('admin.tour_new') }}">Добавить тур</a>
+</div>
+{% if tours %}
+<table class="table">
+  <thead><tr><th>ID</th><th>Название</th><th>Страна</th><th>Цена</th><th>Вылет</th><th>Реком.</th><th>Спец.</th><th>Приоритет</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+    {% for t in tours %}
+    <tr>
+      <td>{{ t.id }}</td>
+      <td><a href="{{ url_for('tour_page', tour_id=t.id) }}" target="_blank">{{ t.title }}</a></td>
+      <td>{{ t.country_name }}</td>
+      <td>{{ '{:,}'.format(t.price).replace(',', ' ') }} ₽</td>
+      <td>{{ t.departure_city }}</td>
+      <td>{{ 'да' if t.is_featured else '' }}</td>
+      <td>{{ 'да' if t.is_special else '' }}</td>
+      <td>{{ t.priority }}</td>
+      <td><span class="status {{ 'status-done' if t.status == 'active' else 'status-new' }}">{{ 'активен' if t.status == 'active' else 'архив' }}</span></td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.tour_edit', tour_id=t.id) }}">Изменить</a>
+        {% if t.status == 'active' %}
+        <form method="post" action="{{ url_for('admin.tour_delete', tour_id=t.id) }}" class="inline-form" onsubmit="return confirm('Переместить тур в архив?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-ghost btn-sm" type="submit">В архив</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Туров нет.</p>
+{% endif %}
+{% endblock %}

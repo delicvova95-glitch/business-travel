@@ -1,0 +1,84 @@
+{# Форма заявки. Переменные: tour (опционально), source_page, compact #}
+<form class="request-form js-request-form" id="request" method="post" action="{{ url_for('create_request') }}" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="idempotency_key" value="">
+  <input type="hidden" name="source_page" value="{{ source_page or request.path }}">
+  {% if tour %}<input type="hidden" name="tour_id" value="{{ tour.id }}">{% endif %}
+
+  <div class="form-row">
+    <div class="form-field">
+      <label for="rf-name">Ваше имя <span class="req">*</span></label>
+      <input type="text" id="rf-name" name="name" required maxlength="100" autocomplete="name">
+      <div class="field-error" data-field="name"></div>
+    </div>
+    <div class="form-field">
+      <label for="rf-phone">Телефон <span class="req">*</span></label>
+      <input type="tel" id="rf-phone" name="phone" required placeholder="+7 999 123-45-67" autocomplete="tel">
+      <div class="field-error" data-field="phone"></div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-field">
+      <label for="rf-email">Электронная почта</label>
+      <input type="email" id="rf-email" name="email" autocomplete="email">
+      <div class="field-error" data-field="email"></div>
+    </div>
+    <div class="form-field">
+      <label for="rf-contact-pref">Предпочтительный способ связи</label>
+      <select id="rf-contact-pref" name="contact_pref">
+        <option value="phone">Звонок</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="telegram">Telegram</option>
+        <option value="email">Email</option>
+      </select>
+      <div class="field-error" data-field="contact_pref"></div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-field">
+      <label for="rf-country">Страна назначения</label>
+      <input type="text" id="rf-country" name="country" maxlength="200"
+             value="{% if tour %}{{ tour.country_name }}{% endif %}">
+      <div class="field-error" data-field="country"></div>
+    </div>
+    <div class="form-field">
+      <label for="rf-dates">Предполагаемые даты</label>
+      <input type="text" id="rf-dates" name="dates" placeholder="например, 10–17 июня" maxlength="200">
+      <div class="field-error" data-field="dates"></div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-field">
+      <label for="rf-tourists">Количество туристов</label>
+      <input type="text" id="rf-tourists" name="tourists" placeholder="2 взрослых" maxlength="200">
+      <div class="field-error" data-field="tourists"></div>
+    </div>
+    <div class="form-field">
+      <label for="rf-budget">Бюджет</label>
+      <input type="text" id="rf-budget" name="budget" placeholder="например, до 150 000 ₽" maxlength="200">
+      <div class="field-error" data-field="budget"></div>
+    </div>
+  </div>
+
+  <div class="form-field">
+    <label for="rf-comment">Комментарий</label>
+    <textarea id="rf-comment" name="comment" rows="3" maxlength="500"></textarea>
+    <div class="field-error" data-field="comment"></div>
+  </div>
+
+  <div class="form-field form-consent">
+    <label class="checkbox">
+      <input type="checkbox" name="consent_pd" value="1">
+      <span>Я ознакомлен(а) с <a href="{{ url_for('privacy') }}" target="_blank">политикой обработки персональных данных</a> и даю <a href="{{ url_for('consent') }}" target="_blank">согласие на их обработку</a>. <span class="req">*</span></span>
+    </label>
+    <div class="field-error" data-field="consent_pd"></div>
+  </div>
+
+  <div class="form-error-global" role="alert" hidden></div>
+
+  <button type="submit" class="btn btn-primary btn-lg">Отправить заявку</button>
+  <p class="form-note">Заявка не является подтверждённым бронированием. Менеджер свяжется с вами в рабочее время ({{ settings.work_hours }}).</p>
+</form>

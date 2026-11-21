@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aceternity 3D Globe</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background: #060a1c; }
+  #root { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  h1 { color: #e2e8f0; font-family: system-ui, sans-serif; font-size: 20px; margin: 16px 0 0; }
+  #status { color: #64748b; font-family: system-ui, sans-serif; font-size: 13px; }
+  .globe-wrap { width: 100%; max-width: 900px; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "three": "https://esm.sh/three@0.160.0",
+    "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.17.10?external=react,react-dom,three",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@9.114.3?external=react,react-dom,three,@react-three/fiber",
+    "@/lib/utils": "./lib/utils.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root">
+  <h1>Aceternity UI — 3D Globe</h1>
+  <div id="status">Загрузка компонента…</div>
+  <div class="globe-wrap" id="globe-container"></div>
+</div>
+
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+
+const statusEl = document.getElementById("status");
+
+try {
+  // Берём оригинальный компонент как есть и трансформируем TSX в браузере
+  const source = await fetch("./components/ui/3d-globe.tsx").then((r) => {
+    if (!r.ok) throw new Error("Не удалось загрузить 3d-globe.tsx: " + r.status);
+    return r.text();
+  });
+
+  const { code } = Babel.transform(source, {
+    filename: "3d-globe.tsx",
+    presets: [
+      ["typescript", { isTSX: true, allExtensions: true }],
+      ["react", { runtime: "classic" }],
+    ],
+  });
+
+  const blobUrl = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+  const { Globe3D } = await import(blobUrl);
+
+  const markers = [
+    { lat: 55.75,  lng: 37.62,  src: "assets/plane.png", label: "Москва" },
+    { lat: 51.5,   lng: -0.12,  src: "assets/plane.png", label: "Лондон" },
+    { lat: 40.71,  lng: -74.0,  src: "assets/plane.png", label: "Нью-Йорк" },
+    { lat: 25.2,   lng: 55.27,  src: "assets/plane.png", label: "Дубай" },
+    { lat: 35.68,  lng: 139.69, src: "assets/plane.png", label: "Токио" },
+    { lat: -33.87, lng: 151.21, src: "assets/plane.png", label: "Сидней" },
+  ];
+
+  statusEl.textContent = "Клик по маркеру — покажет название. Вращение — мышью.";
+
+  createRoot(document.getElementById("globe-container")).render(
+    React.createElement(Globe3D, {
+      markers,
+      config: { showAtmosphere: true, enableZoom: true },
+      onMarkerClick: (m) => {
+        statusEl.textContent = "Маркер: " + (m.label || `${m.lat}, ${m.lng}`);
+      },
+      onMarkerHover: (m) => {
+        if (m) statusEl.textContent = "Маркер: " + (m.label || "");
+      },
+    }),
+  );
+} catch (err) {
+  statusEl.textContent = "Ошибка: " + err.message;
+  console.error(err);
+}
+</script>
+</body>
+</html>

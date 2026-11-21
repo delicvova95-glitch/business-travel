@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script type="importmap">
+{ "imports": { "three": "{{ url_for('static', filename='vendor/three.module.js') }}" } }
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hero" id="hero">
+  <div class="hero-stage">
+    <div class="hero-canvas" id="hero-canvas" aria-hidden="true"></div>
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+      <p class="hero-kicker">Туристическое агентство · Томск</p>
+      <p class="hero-brand" aria-hidden="true">Business Travel</p>
+      <h1>Мир возможностей начинается с&nbsp;путешествия</h1>
+      <p class="hero-sub">Организуем деловые поездки и&nbsp;путешествия, продумывая каждую деталь вашего маршрута.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold btn-lg" href="#services">Начать путешествие</a>
+        <a class="btn btn-ghost btn-lg" href="{{ url_for('catalog') }}">Каталог туров</a>
+      </div>
+    </div>
+    <div class="hero-scroll-hint" aria-hidden="true">Листайте вниз</div>
+  </div>
+</section>
+
+<!-- 1. Три направления -->
+<section class="section" id="services">
+  <div class="container">
+    <h2 class="section-title">Направления работы</h2>
+    <div class="dir-grid">
+      <article class="dir-card reveal">
+        <a class="dir-card-img" href="{{ url_for('events') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_events.jpg') }}" alt="Участники конференции в зале" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <h3>Мероприятия</h3>
+          <p>Корпоративные мероприятия, конференции, форумы и выездные мероприятия под ключ.</p>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('events') }}">Подробнее</a>
+        </div>
+      </article>
+      <article class="dir-card reveal">
+        <a class="dir-card-img" href="{{ url_for('business_travel') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_business.jpg') }}" alt="Крыло самолёта над облаками" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <h3>Деловые поездки</h3>
+          <p>Организация командировок и деловых поездок: маршрут, билеты, отели и помощь с логистикой.</p>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('business_travel') }}">Подробнее</a>
+        </div>
+      </article>
+      <article class="dir-card reveal">
+        <a class="dir-card-img" href="{{ url_for('individual') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_individual.jpg') }}" alt="Лодка на горном озере" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <h3>Путешествия</h3>
+          <p>Вы описываете свои пожелания — менеджер помогает составить маршрут и продумывает каждую деталь.</p>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('individual') }}">Подробнее</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Кратко о компании -->
+<section class="section section-alt" id="about-brief">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Агентство деловых поездок и&nbsp;путешествий</h2>
+    </div>
+    <div>
+      <p>Business Travel — туристическое агентство из Томска. Мы организуем корпоративные мероприятия, деловые поездки и индивидуальные путешествия — от первой идеи до возвращения домой.</p>
+      <p>Работаем с компаниями, государственными и муниципальными организациями, а также с частными клиентами.</p>
+      <a class="btn btn-outline" href="{{ url_for('about') }}">Подробнее о компании</a>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Почему выбирают нас -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Почему выбирают нас</h2>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <div class="feature-num">01</div>
+        <h3>Индивидуальный подход</h3>
+        <p>Программу мероприятия или маршрут поездки составляем под ваши задачи и пожелания, а не предлагаем шаблонные решения.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">02</div>
+        <h3>Экономия времени</h3>
+        <p>Берём на себя поиск, бронирование и согласования — вы занимаетесь своими делами.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">03</div>
+        <h3>Координация деталей</h3>
+        <p>Билеты, отели, трансферы, площадки и документы — координируем организационные вопросы поездки или мероприятия.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">04</div>
+        <h3>Сопровождение</h3>
+        <p>Остаёмся на связи и сопровождаем вас в согласованном объёме на всех этапах.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Три направления подробнее -->
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Наши услуги</h2>
+    <div class="dir-detail">
+      <div class="dir-detail-item reveal">
+        <h3>Организация мероприятий</h3>
+        <p>Конференции, форумы, корпоративные и выездные мероприятия. Подбираем площадку, организуем размещение и трансферы участников, помогаем с программой и логистикой.</p>
+        <a class="dest-link" href="{{ url_for('events') }}">Подробнее об услуге</a>
+      </div>
+      <div class="dir-detail-item reveal">
+        <h3>Деловые поездки</h3>
+        <p>Командировки для компаний, государственных и муниципальных организаций. Билеты, отели, трансферы и полный комплект отчётных документов.</p>
+        <a class="dest-link" href="{{ url_for('business_travel') }}">Подробнее об услуге</a>
+      </div>
+      <div class="dir-detail-item reveal">
+        <h3>Индивидуальные путешествия</h3>
+        <p>Маршруты по вашим пожеланиям. Вместе с менеджером составляем программу, подбираем перелёты и отели, помогаем с документами и страховкой.</p>
+        <a class="dest-link" href="{{ url_for('individual') }}">Подробнее об услуге</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Этапы работы -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Этапы работы с клиентом</h2>
+    <ol class="steps">
+      <li class="reveal"><span>1</span><h3>Вы оставляете заявку</h3><p>Через форму на сайте, по телефону или в мессенджере.</p></li>
+      <li class="reveal"><span>2</span><h3>Менеджер уточняет пожелания</h3><p>Обсуждаем задачи, даты, бюджет и формат поездки или мероприятия.</p></li>
+      <li class="reveal"><span>3</span><h3>Готовим предложение</h3><p>Подбираем варианты и программу с прозрачным описанием условий.</p></li>
+      <li class="reveal"><span>4</span><h3>Согласование и организация</h3><p>Вы утверждаете условия — мы переходим к оформлению и сопровождению.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 6. Наши проекты: структура для будущих кейсов -->
+<section class="section section-alt" id="projects">
+  <div class="container">
+    <h2 class="section-title">Наши проекты</h2>
+    <div class="projects-empty reveal">
+      <p>Мы готовим истории реализованных проектов: мероприятий, деловых поездок и путешествий. Раздел будет пополняться по мере появления новых работ.</p>
+      <a class="btn btn-outline" href="{{ url_for('projects') }}">Форматы нашей работы</a>
+    </div>
+    {# Структура для будущих реальных кейсов — раскомментировать и заполнить:
+    <div class="projects-grid">
+      <article class="project-card reveal">
+        <img src="{{ url_for('static', filename='img/projects/....jpg') }}" alt="...">
+        <div class="project-card-body">
+          <span class="project-card-tag">Мероприятие</span>
+          <h3>Название проекта</h3>
+          <p>Короткое описание задачи и решения.</p>
+        </div>
+      </article>
+    </div>
+    #}
+  </div>
+</section>
+
+<!-- 7. Контакты и форма заявки -->
+<section class="section" id="contacts">
+  <div class="container split">
+    <div class="prose">
+      <h2 class="section-title">Свяжитесь с нами</h2>
+      <dl class="contact-list">
+        {% if settings.phone and '_' not in settings.phone %}
+        <div><dt>Телефон</dt><dd><a href="tel:{{ settings.phone|replace(' ','')|replace('(','')|replace(')','')|replace('-','') }}">{{ settings.phone }}</a></dd></div>
+        {% endif %}
+        {% if settings.email %}<div><dt>Email</dt><dd><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></dd></div>{% endif %}
+        {% if settings.address %}<div><dt>Адрес</dt><dd>{{ settings.address }}</dd></div>{% endif %}
+        {% if settings.work_hours %}<div><dt>Режим работы</dt><dd>{{ settings.work_hours }}</dd></div>{% endif %}
+      </dl>
+      <p class="muted">Или оставьте заявку: выберите услугу и удобный способ связи — менеджер ответит в рабочее время.</p>
+    </div>
+    <div>
+      {% set tour = None %}
+      {% set source_page = request.path %}
+      {% set show_service = True %}
+      {% include "_request_form.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/globe.js') }}" type="module" defer></script>
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

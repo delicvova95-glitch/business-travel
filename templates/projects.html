@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Проекты</span></nav>
+    <h1>Проекты</h1>
+    <p class="page-sub">Форматы работы Business Travel: мероприятия, деловые поездки и индивидуальные путешествия.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature">
+        <div class="feature-num">01</div>
+        <h3>Мероприятия</h3>
+        <p>Конференции, форумы, корпоративные и выездные мероприятия: площадка, логистика, проживание участников.</p>
+        <p><a class="btn btn-outline" href="{{ url_for('events') }}">Подробнее</a></p>
+      </div>
+      <div class="feature">
+        <div class="feature-num">02</div>
+        <h3>Деловые поездки</h3>
+        <p>Командировки и выезды делегаций для компаний и организаций государственного сектора, с отчётными документами.</p>
+        <p><a class="btn btn-outline" href="{{ url_for('business_travel') }}">Подробнее</a></p>
+      </div>
+      <div class="feature">
+        <div class="feature-num">03</div>
+        <h3>Индивидуальные путешествия</h3>
+        <p>Маршруты, составленные под пожелания клиента, с сопровождением менеджера на всех этапах.</p>
+        <p><a class="btn btn-outline" href="{{ url_for('individual') }}">Подробнее</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container prose">
+    <h2 class="section-title">Истории реализованных проектов</h2>
+    <p class="muted">Мы готовим подробные описания проектов: задача заказчика, формат работы, результат и фотографии. Материалы публикуются только после согласования с заказчиками — этот раздел будет пополняться по мере их подготовки.</p>
+    {# Структура карточки кейса для будущих публикаций — раскомментировать и заполнить:
+    <div class="projects-grid">
+      <article class="project-card">
+        <img src="{{ url_for('static', filename='img/projects/....jpg') }}" alt="...">
+        <div class="project-card-body">
+          <span class="project-card-tag">Мероприятие</span>
+          <h3>Название проекта</h3>
+          <p>Задача, формат и результат.</p>
+        </div>
+      </article>
+    </div>
+    #}
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container prose">
+    <h2 class="section-title">Обсудить проект</h2>
+    <p>Каждый проект начинается с разговора: расскажите о задаче, и менеджер предложит формат и варианты реализации. Оставьте заявку на странице <a href="{{ url_for('contacts') }}">контактов</a> или в разделе нужной услуги.</p>
+    <a class="btn btn-primary" href="{{ url_for('contacts') }}#request">Оставить заявку</a>
+  </div>
+</section>
+{% endblock %}

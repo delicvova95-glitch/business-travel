@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Обзор</h1>
+{% if not telegram_configured %}
+<div class="flash flash-warn">Telegram-уведомления не настроены: задайте переменные окружения TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID, затем перезапустите сервер.</div>
+{% endif %}
+<div class="stats-grid">
+  <div class="stat"><div class="stat-num">{{ stats.requests_new }}</div><div>Новых заявок</div></div>
+  <div class="stat"><div class="stat-num">{{ stats.requests_total }}</div><div>Всего заявок</div></div>
+  <div class="stat"><div class="stat-num">{{ stats.tours_active }}</div><div>Активных туров</div></div>
+  <div class="stat"><div class="stat-num">{{ stats.destinations }}</div><div>Направлений</div></div>
+</div>
+
+<h2>Последние заявки</h2>
+{% if latest %}
+<table class="table">
+  <thead><tr><th>Номер</th><th>Имя</th><th>Телефон</th><th>Тур</th><th>Статус</th><th>Telegram</th><th>Дата</th></tr></thead>
+  <tbody>
+    {% for r in latest %}
+    <tr>
+      <td>#{{ r.public_number }}</td>
+      <td>{{ r.name }}</td>
+      <td>{{ r.phone }}</td>
+      <td>{{ r.tour_title or '—' }}</td>
+      <td><span class="status status-{{ r.status }}">{{ {'new': 'Новая', 'in_progress': 'В работе', 'done': 'Завершена'}[r.status] }}</span></td>
+      <td>{{ {'sent': 'отправлено', 'failed': 'ошибка', 'disabled': 'не настроено', 'pending': 'ожидает'}[r.telegram_status] }}</td>
+      <td>{{ r.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Заявок пока нет.</p>
+{% endif %}
+{% endblock %}

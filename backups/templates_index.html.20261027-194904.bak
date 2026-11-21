@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% set currency = request.args.get('currency', 'RUB') %}
+
+{% block head %}
+<script type="importmap">
+{ "imports": { "three": "{{ url_for('static', filename='vendor/three.module.js') }}" } }
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hero" id="hero">
+  <div class="hero-stage">
+    <div class="hero-canvas" id="hero-canvas" aria-hidden="true"></div>
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+      <p class="hero-kicker">Туристическое агентство · Томск</p>
+      <p class="hero-brand" aria-hidden="true">Business Travel</p>
+      <h1>Мир возможностей начинается с&nbsp;путешествия</h1>
+      <p class="hero-sub">Организуем деловые поездки и&nbsp;путешествия, продумывая каждую деталь вашего маршрута.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold btn-lg" href="#search">Начать путешествие</a>
+        <a class="btn btn-ghost btn-lg" href="{{ url_for('catalog') }}">Каталог туров</a>
+      </div>
+    </div>
+    <div class="hero-scroll-hint" aria-hidden="true">Листайте вниз</div>
+  </div>
+</section>
+
+<section class="section section-services" id="services">
+  <div class="container">
+    <h2 class="section-title">Чем мы занимаемся</h2>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <div class="feature-num">01</div>
+        <h3>Организация мероприятий</h3>
+        <p>Корпоративные мероприятия, конференции, форумы и выездные мероприятия под ключ.</p>
+        <p><a class="dest-link" href="{{ url_for('events') }}">Подробнее</a></p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">02</div>
+        <h3>Деловые поездки</h3>
+        <p>Командировки для компаний, государственных и муниципальных организаций с отчётными документами.</p>
+        <p><a class="dest-link" href="{{ url_for('business_travel') }}">Подробнее</a></p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">03</div>
+        <h3>Индивидуальные путешествия</h3>
+        <p>Маршрут под ваши пожелания: вы описываете поездку, менеджер продумывает каждую деталь.</p>
+        <p><a class="dest-link" href="{{ url_for('individual') }}">Подробнее</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-search" id="search">
+  <div class="container">
+    <h2 class="section-title">Подбор тура</h2>
+    <form class="search-form" method="get" action="{{ url_for('catalog') }}">
+      <div class="search-grid">
+        <div class="form-field">
+          <label for="s-country">Страна назначения</label>
+          <select id="s-country" name="country">
+            <option value="">Любая</option>
+            {% for d in all_destinations %}
+            <option value="{{ d.slug }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="s-city">Город вылета</label>
+          <select id="s-city" name="departure_city">
+            <option value="">Любой</option>
+            {% for c in departure_cities %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="s-date-from">Дата начала</label>
+          <input type="date" id="s-date-from" name="date_from">
+        </div>
+        <div class="form-field">
+          <label for="s-date-to">Дата окончания</label>
+          <input type="date" id="s-date-to" name="date_to">
+        </div>
+        <div class="form-field">
+          <label for="s-nights">Продолжительность, ночей</label>
+          <select id="s-nights" name="nights_max">
+            <option value="">Любая</option>
+            <option value="7">до 7</option>
+            <option value="10">до 10</option>
+            <option value="14">до 14</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="s-adults">Взрослых</label>
+          <select id="s-adults" name="adults">
+            {% for n in range(1, 7) %}<option value="{{ n }}" {% if n == 2 %}selected{% endif %}>{{ n }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="s-children">Детей</label>
+          <select id="s-children" name="children">
+            {% for n in range(0, 5) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-field" id="children-ages-wrap" hidden>
+          <label for="s-children-ages">Возраст детей</label>
+          <input type="text" id="s-children-ages" name="children_ages" placeholder="например, 5 и 9 лет">
+        </div>
+        <div class="form-field">
+          <label for="s-price-min">Бюджет от, ₽</label>
+          <input type="number" id="s-price-min" name="price_min" min="0" step="1000" placeholder="0">
+        </div>
+        <div class="form-field">
+          <label for="s-price-max">Бюджет до, ₽</label>
+          <input type="number" id="s-price-max" name="price_max" min="0" step="1000" placeholder="300000">
+        </div>
+        <div class="form-field">
+          <label for="s-currency">Валюта отображения</label>
+          <select id="s-currency" name="currency">
+            <option value="RUB">₽ рубли</option>
+            <option value="USD">$ доллары</option>
+            <option value="EUR">€ евро</option>
+          </select>
+        </div>
+      </div>
+      <input type="hidden" name="tourists" id="s-tourists" value="2">
+      <div class="search-actions">
+        <button type="submit" class="btn btn-primary btn-lg">Найти туры</button>
+        <p class="search-note">Поиск выполняется по актуальным предложениям каталога. Выбранные условия сохраняются в ссылке.</p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section" id="destinations">
+  <div class="container">
+    <h2 class="section-title">Популярные направления</h2>
+    <div class="dest-grid">
+      {% for d in destinations %}
+      <article class="dest-card reveal">
+        <a href="{{ url_for('destination_page', slug=d.slug) }}">
+          <img src="{{ url_for('static', filename=d.image) }}" alt="{{ d.name }}" loading="lazy">
+          <div class="dest-card-body">
+            <h3>{{ d.name }}</h3>
+            <p>{{ d.description }}</p>
+            <span class="dest-count">{{ d.tours_count }} {{ 'предложение' if d.tours_count == 1 else ('предложения' if 1 < d.tours_count < 5 else 'предложений') }}</span>
+            <span class="dest-link">Смотреть туры</span>
+          </div>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% if featured %}
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Рекомендуемые туры</h2>
+    <div class="tours-grid">
+      {% for t in featured %}
+      {% include "_tour_card.html" %}
+      {% endfor %}
+    </div>
+    <div class="section-more"><a class="btn btn-outline" href="{{ url_for('catalog') }}">Весь каталог</a></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Почему Business Travel</h2>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <div class="feature-num">01</div>
+        <h3>Индивидуальный подбор</h3>
+        <p>Подбираем путешествие под ваши пожелания, состав семьи и бюджет, а не предлагаем «что есть».</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">02</div>
+        <h3>Персональное сопровождение</h3>
+        <p>Один менеджер ведёт вас от первой заявки до возвращения домой.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">03</div>
+        <h3>Прозрачные условия</h3>
+        <p>Честно описываем, что включено в стоимость, а что оплачивается отдельно.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">04</div>
+        <h3>Помощь с организацией</h3>
+        <p>Помогаем с документами, страховкой, трансферами и другими деталями поездки.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">05</div>
+        <h3>Варианты под разные бюджеты</h3>
+        <p>Предлагаем несколько вариантов в разном ценовом диапазоне, чтобы было из чего выбрать.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Как мы работаем</h2>
+    <ol class="steps">
+      <li class="reveal"><span>1</span><h3>Вы оставляете заявку</h3><p>Через форму на сайте, по телефону или в мессенджере.</p></li>
+      <li class="reveal"><span>2</span><h3>Менеджер уточняет пожелания</h3><p>Обсуждаем даты, бюджет, состав путешественников и пожелания к отдыху.</p></li>
+      <li class="reveal"><span>3</span><h3>Подбираем предложения</h3><p>Готовим подборку подходящих вариантов с прозрачным описанием условий.</p></li>
+      <li class="reveal"><span>4</span><h3>Согласование и бронирование</h3><p>Вы утверждаете условия — и мы переходим к оформлению бронирования.</p></li>
+    </ol>
+  </div>
+</section>
+
+{% if specials %}
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Специальные предложения</h2>
+    <div class="tours-grid">
+      {% for t in specials %}
+      {% include "_tour_card.html" %}
+      {% endfor %}
+    </div>
+    <div class="section-more"><a class="btn btn-outline" href="{{ url_for('specials') }}">Все специальные предложения</a></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="section section-alt">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Индивидуальный запрос</h2>
+      <p>Не нашли подходящий вариант в каталоге? Опишите желаемую поездку — менеджер подготовит персональную подборку.</p>
+      <a class="btn btn-primary" href="{{ url_for('contacts') }}#request">Оставить запрос</a>
+    </div>
+    <div>
+      <h2 class="section-title">Корпоративным клиентам</h2>
+      <p>Организуем деловые поездки для компаний: билеты, отели, трансферы и отчётные документы.</p>
+      <a class="btn btn-outline" href="{{ url_for('business_travel') }}">Подробнее об услугах</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Частые вопросы</h2>
+    <div class="faq-list">
+      <details class="reveal"><summary>Заявка на сайте — это бронирование?</summary><p>Нет. Заявка означает, что менеджер свяжется с вами и подберёт варианты. Бронирование подтверждается только после согласования условий и подтверждения поставщика.</p></details>
+      <details class="reveal"><summary>Сколько времени занимает подбор тура?</summary><p>Обычно менеджер отвечает в рабочее время в день обращения. Точный срок зависит от сложности запроса.</p></details>
+      <details class="reveal"><summary>Можно ли изменить даты после заявки?</summary><p>Да, до момента оплаты и подтверждения бронирования даты и параметры поездки можно скорректировать.</p></details>
+    </div>
+    <div class="section-more"><a class="btn btn-outline" href="{{ url_for('faq') }}">Все вопросы</a></div>
+  </div>
+</section>
+
+<section class="section cta-section">
+  <div class="container cta">
+    <h2>Готовы обсудить путешествие?</h2>
+    <p>Оставьте заявку — менеджер свяжется с вами в рабочее время и ответит на вопросы.</p>
+    <a class="btn btn-gold btn-lg" href="{{ url_for('contacts') }}#request">Оставить заявку</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/globe.js') }}" type="module" defer></script>
+{% endblock %}

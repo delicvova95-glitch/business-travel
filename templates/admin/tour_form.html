@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>{{ 'Редактирование тура' if tour else 'Новый тур' }}</h1>
+<form method="post" class="admin-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row">
+    <div class="form-field">
+      <label>Название *</label>
+      <input type="text" name="title" required value="{{ tour.title if tour else '' }}">
+    </div>
+    <div class="form-field">
+      <label>Направление *</label>
+      <select name="destination_id" required>
+        {% for d in destinations %}
+        <option value="{{ d.id }}" {% if tour and tour.destination_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Курорт</label>
+      <input type="text" name="resort" value="{{ tour.resort if tour else '' }}">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Отель</label>
+      <input type="text" name="hotel_name" value="{{ tour.hotel_name if tour else '' }}">
+    </div>
+    <div class="form-field">
+      <label>Звёзды</label>
+      <select name="hotel_stars">
+        {% for n in range(0, 6) %}
+        <option value="{{ n }}" {% if tour and tour.hotel_stars == n %}selected{% endif %}>{{ n if n else '—' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Тип питания</label>
+      <input type="text" name="meal_type" value="{{ tour.meal_type if tour else '' }}">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Дата вылета</label>
+      <input type="date" name="date_from" value="{{ tour.date_from if tour else '' }}">
+    </div>
+    <div class="form-field">
+      <label>Дата возвращения</label>
+      <input type="date" name="date_to" value="{{ tour.date_to if tour else '' }}">
+    </div>
+    <div class="form-field">
+      <label>Ночей</label>
+      <input type="number" name="nights" min="1" value="{{ tour.nights if tour else 7 }}">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Город вылета</label>
+      <input type="text" name="departure_city" value="{{ tour.departure_city if tour else 'Томск' }}">
+    </div>
+    <div class="form-field">
+      <label>Тип отдыха</label>
+      <input type="text" name="vacation_type" value="{{ tour.vacation_type if tour else 'Пляжный' }}">
+    </div>
+    <div class="form-field">
+      <label>Человек (за цену)</label>
+      <input type="number" name="persons" min="1" value="{{ tour.persons if tour else 2 }}">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Цена</label>
+      <input type="number" name="price" min="0" step="100" required value="{{ tour.price if tour else '' }}">
+    </div>
+    <div class="form-field">
+      <label>Валюта</label>
+      <select name="currency">
+        <option value="RUB" {% if not tour or tour.currency == 'RUB' %}selected{% endif %}>RUB</option>
+        <option value="USD" {% if tour and tour.currency == 'USD' %}selected{% endif %}>USD</option>
+        <option value="EUR" {% if tour and tour.currency == 'EUR' %}selected{% endif %}>EUR</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Приоритет (больше = выше в выдаче)</label>
+      <input type="number" name="priority" value="{{ tour.priority if tour else 0 }}">
+    </div>
+  </div>
+  <div class="form-field">
+    <label>Изображение (путь внутри static/, например img/dest_turkey.jpg)</label>
+    <input type="text" name="image" value="{{ tour.image if tour else '' }}">
+  </div>
+  <div class="form-field">
+    <label>Описание</label>
+    <textarea name="description" rows="3">{{ tour.description if tour else '' }}</textarea>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Что включено</label>
+      <textarea name="includes" rows="2">{{ tour.includes if tour else '' }}</textarea>
+    </div>
+    <div class="form-field">
+      <label>Дополнительные расходы</label>
+      <textarea name="extra_costs" rows="2">{{ tour.extra_costs if tour else '' }}</textarea>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Условия оплаты</label>
+      <textarea name="payment_terms" rows="2">{{ tour.payment_terms if tour else '' }}</textarea>
+    </div>
+    <div class="form-field">
+      <label>Условия отмены</label>
+      <textarea name="cancel_terms" rows="2">{{ tour.cancel_terms if tour else '' }}</textarea>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-field">
+      <label>Визы и документы</label>
+      <textarea name="visa_info" rows="2">{{ tour.visa_info if tour else '' }}</textarea>
+    </div>
+    <div class="form-field">
+      <label>Информация о визах актуальна на</label>
+      <input type="date" name="visa_info_date" value="{{ tour.visa_info_date if tour else '' }}">
+    </div>
+  </div>
+  <div class="form-row checkboxes">
+    <label class="checkbox"><input type="checkbox" name="is_featured" {% if tour and tour.is_featured %}checked{% endif %}> <span>Рекомендуемый</span></label>
+    <label class="checkbox"><input type="checkbox" name="is_special" {% if tour and tour.is_special %}checked{% endif %}> <span>Специальное предложение</span></label>
+    <label class="checkbox"><input type="checkbox" name="price_needs_confirmation" {% if not tour or tour.price_needs_confirmation %}checked{% endif %}> <span>Цена требует подтверждения</span></label>
+    <label class="checkbox"><input type="checkbox" name="status" value="active" {% if not tour or tour.status == 'active' %}checked{% endif %}> <span>Активен</span></label>
+  </div>
+  <button type="submit" class="btn btn-primary">Сохранить</button>
+  <a class="btn btn-ghost" href="{{ url_for('admin.tours_list') }}">Отмена</a>
+</form>
+{% endblock %}

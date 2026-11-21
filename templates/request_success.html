@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <div class="container notfound">
+    <div class="success-icon" aria-hidden="true">✓</div>
+    <h1>Заявка отправлена</h1>
+    <p>Номер вашей заявки: <strong class="request-number">#{{ req.public_number }}</strong></p>
+    <p>Менеджер свяжется с вами в рабочее время ({{ settings.work_hours }}) по указанному способу связи. Сохраните номер заявки — он пригодится при обращении.</p>
+    <p class="muted">Обратите внимание: заявка не является подтверждённым бронированием.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('index') }}">На главную</a>
+      <a class="btn btn-outline" href="{{ url_for('catalog') }}">Продолжить просмотр туров</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set currency = request.args.get('currency', 'RUB') %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки">
+      <a href="{{ url_for('index') }}">Главная</a> /
+      <a href="{{ url_for('catalog') }}">Каталог</a> /
+      <a href="{{ url_for('destination_page', slug=tour.country_slug) }}">{{ tour.country_name }}</a> /
+      <span>{{ tour.title }}</span>
+    </nav>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container tour-layout">
+    <div class="tour-main">
+      <div class="tour-gallery">
+        <img src="{{ url_for('static', filename=tour.image) }}" alt="{{ tour.title }}">
+      </div>
+
+      <h1>{{ tour.title }}</h1>
+      <p class="tour-location">{{ tour.country_name }}{% if tour.resort %}, {{ tour.resort }}{% endif %}</p>
+
+      <dl class="tour-facts">
+        {% if tour.hotel_name %}
+        <div><dt>Отель</dt><dd>{{ tour.hotel_name }}{% if tour.hotel_stars %} <span class="stars">{{ "★" * tour.hotel_stars }}</span>{% endif %}</dd></div>
+        {% endif %}
+        <div><dt>Даты путешествия</dt><dd>{{ tour.date_from[8:10] }}.{{ tour.date_from[5:7] }}.{{ tour.date_from[0:4] }} — {{ tour.date_to[8:10] }}.{{ tour.date_to[5:7] }}.{{ tour.date_to[0:4] }}</dd></div>
+        <div><dt>Продолжительность</dt><dd>{{ tour.nights }} ночей</dd></div>
+        <div><dt>Город вылета</dt><dd>{{ tour.departure_city }}</dd></div>
+        <div><dt>Тип питания</dt><dd>{{ tour.meal_type }}</dd></div>
+        <div><dt>Размещение</dt><dd>{{ tour.persons }} чел. (за эту цену)</dd></div>
+        <div><dt>Тип отдыха</dt><dd>{{ tour.vacation_type }}</dd></div>
+      </dl>
+
+      {% if tour.description %}
+      <h2>Описание</h2>
+      <p>{{ tour.description }}</p>
+      {% endif %}
+
+      {% if tour.includes %}
+      <h2>Что включено</h2>
+      <p>{{ tour.includes }}</p>
+      {% endif %}
+
+      {% if tour.extra_costs %}
+      <h2>Дополнительные расходы</h2>
+      <p>{{ tour.extra_costs }}</p>
+      {% endif %}
+
+      <h2>Условия оплаты</h2>
+      <p>{{ tour.payment_terms }}</p>
+
+      <h2>Условия отмены</h2>
+      <p>{{ tour.cancel_terms }}</p>
+
+      <h2>Документы и визы</h2>
+      <p>{{ tour.visa_info }}
+        {% if tour.visa_info_date %}
+        <span class="muted">(информация актуальна на {{ tour.visa_info_date[8:10] }}.{{ tour.visa_info_date[5:7] }}.{{ tour.visa_info_date[0:4] }})</span>
+        {% endif %}
+      </p>
+
+      {% if similar %}
+      <h2>Похожие предложения</h2>
+      <div class="tours-grid tours-grid-sm">
+        {% for t in similar %}
+        {% include "_tour_card.html" %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <aside class="tour-aside">
+      <div class="price-box">
+        <div class="tour-card-price">{{ tour.price|price(currency) }}</div>
+        <div class="tour-card-per">за {{ tour.persons }} чел., {{ tour.nights }} ночей</div>
+        {% if tour.price_needs_confirmation %}
+        <div class="price-note">Стоимость требует подтверждения менеджером</div>
+        {% endif %}
+        <p class="muted small">Заявка не является подтверждённым бронированием.</p>
+        {% include "_request_form.html" %}
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

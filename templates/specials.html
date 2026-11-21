@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set currency = request.args.get('currency', 'RUB') %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Специальные предложения</span></nav>
+    <h1>Специальные предложения</h1>
+    <p class="page-sub">Актуальная подборка предложений, отобранных нашими менеджерами.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {% if tours %}
+    <div class="tours-grid">
+      {% for t in tours %}
+      {% include "_tour_card.html" %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="catalog-state">Сейчас нет активных специальных предложений. Загляните позже или оставьте индивидуальный запрос.</div>
+    <div class="section-more"><a class="btn btn-primary" href="{{ url_for('catalog') }}">Перейти в каталог</a></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

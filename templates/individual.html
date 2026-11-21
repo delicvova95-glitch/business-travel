@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head page-head-img" style="background-image: url('{{ url_for('static', filename='img/hero_individual.jpg') }}')">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Индивидуальные путешествия</span></nav>
+    <h1>Индивидуальные путешествия</h1>
+    <p class="page-sub">Вы описываете пожелания — менеджер помогает составить маршрут и продумывает каждую деталь поездки.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Путешествие начинается с ваших пожеланий</h2>
+    </div>
+    <div class="prose">
+      <p class="lead">Здесь нет витрины готовых туров: маршрут составляется под вас, а не выбирается из списка.</p>
+      <p>Расскажите, каким вы видите путешествие: направление или несколько вариантов, примерные даты, интересы, темп отдыха и бюджет. Менеджер поможет превратить пожелания в конкретный маршрут.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Как мы работаем с вашим запросом</h2>
+    <ol class="steps">
+      <li><span>1</span><h3>Ваши пожелания</h3><p>Описываете направление, даты, интересы и бюджет — в форме ниже или в разговоре с менеджером.</p></li>
+      <li><span>2</span><h3>Маршрут с менеджером</h3><p>Вместе составляем маршрут и подбираем перелёты, отели и перемещения.</p></li>
+      <li><span>3</span><h3>Документы и страховка</h3><p>Помогаем с визовыми и страховыми вопросами, объясняем условия каждого предложения.</p></li>
+      <li><span>4</span><h3>На связи в поездке</h3><p>Сопровождаем вас на всех этапах — от заявки до возвращения домой.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="media-split">
+      <div>
+        <img src="{{ url_for('static', filename='img/sec_individual.jpg') }}" alt="Карта, фотоаппарат и рюкзак — планирование путешествия" loading="lazy">
+      </div>
+      <div>
+        <h2 class="section-title">Что описать в заявке</h2>
+        <ul class="check-list">
+          <li>Куда хотите поехать — или несколько вариантов на выбор</li>
+          <li>Предполагаемые даты и продолжительность</li>
+          <li>Интересы: пляж, город, природа, гастрономия, активный отдых</li>
+          <li>Бюджет, в который нужно уложиться</li>
+        </ul>
+        <p class="muted">Чем лучше мы поймём ваши пожелания, тем точнее будет предложение. Если чего-то не знаете — это нормально, менеджер поможет определиться.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="container">
+    <h2 class="section-title">Обсудить путешествие</h2>
+    <p>Напишите, куда и как хотите поехать, — менеджер предложит варианты маршрута.</p>
+    <div class="form-card" style="margin-top: 24px;">
+      {% set tour = None %}
+      {% set source_page = request.path %}
+      {% set label_country = "Куда хотите поехать" %}
+      {% include "_request_form.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

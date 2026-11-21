@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set args = request.args %}
+{% set currency = args.get('currency', 'RUB') %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Каталог туров</span></nav>
+    <h1>Каталог туров</h1>
+    <p class="page-sub" id="catalog-counter">Найдено предложений: {{ total }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container catalog-layout">
+    <aside class="filters" aria-label="Фильтры каталога">
+      <form id="filters-form" method="get" action="{{ url_for('catalog') }}">
+        <div class="form-field">
+          <label for="f-country">Страна</label>
+          <select id="f-country" name="country">
+            <option value="">Любая</option>
+            {% for d in destinations %}
+            <option value="{{ d.slug }}" {% if args.get('country') == d.slug %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="f-resort">Курорт</label>
+          <input type="text" id="f-resort" name="resort" value="{{ args.get('resort', '') }}" placeholder="например, Анталья">
+        </div>
+        <div class="form-field">
+          <label for="f-city">Город вылета</label>
+          <select id="f-city" name="departure_city">
+            <option value="">Любой</option>
+            {% for c in departure_cities %}
+            <option value="{{ c }}" {% if args.get('departure_city') == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="f-date-from">Дата вылета от</label>
+          <input type="date" id="f-date-from" name="date_from" value="{{ args.get('date_from', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-date-to">Дата вылета до</label>
+          <input type="date" id="f-date-to" name="date_to" value="{{ args.get('date_to', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-nights-min">Ночей от</label>
+          <input type="number" id="f-nights-min" name="nights_min" min="1" max="30" value="{{ args.get('nights_min', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-nights-max">Ночей до</label>
+          <input type="number" id="f-nights-max" name="nights_max" min="1" max="30" value="{{ args.get('nights_max', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-price-min">Бюджет от, ₽</label>
+          <input type="number" id="f-price-min" name="price_min" min="0" step="1000" value="{{ args.get('price_min', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-price-max">Бюджет до, ₽</label>
+          <input type="number" id="f-price-max" name="price_max" min="0" step="1000" value="{{ args.get('price_max', '') }}">
+        </div>
+        <div class="form-field">
+          <label for="f-stars">Категория отеля</label>
+          <select id="f-stars" name="stars">
+            <option value="">Любая</option>
+            {% for n in range(3, 6) %}
+            <option value="{{ n }}" {% if args.get('stars', type=int) == n %}selected{% endif %}>от {{ n }}★</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="f-meal">Тип питания</label>
+          <select id="f-meal" name="meal_type">
+            <option value="">Любой</option>
+            {% for m in meal_types %}
+            <option value="{{ m }}" {% if args.get('meal_type') == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="f-vtype">Тип отдыха</label>
+          <select id="f-vtype" name="vacation_type">
+            <option value="">Любой</option>
+            {% for v in vacation_types %}
+            <option value="{{ v }}" {% if args.get('vacation_type') == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="f-tourists">Туристов</label>
+          <select id="f-tourists" name="tourists">
+            <option value="">Любое</option>
+            {% for n in range(1, 7) %}
+            <option value="{{ n }}" {% if args.get('tourists', type=int) == n %}selected{% endif %}>{{ n }}+</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field checkbox-field">
+          <label class="checkbox">
+            <input type="checkbox" name="special" value="1" {% if args.get('special') == '1' %}checked{% endif %}>
+            <span>Только специальные предложения</span>
+          </label>
+        </div>
+        <input type="hidden" name="currency" value="{{ currency }}">
+        <input type="hidden" name="sort" id="f-sort-hidden" value="{{ args.get('sort', 'priority') }}">
+        <input type="hidden" name="page" id="f-page" value="1">
+        <button type="submit" class="btn btn-primary">Показать</button>
+        <a class="btn btn-ghost" href="{{ url_for('catalog') }}" id="filters-reset">Сбросить фильтры</a>
+      </form>
+    </aside>
+
+    <div class="catalog-main">
+      <div class="catalog-toolbar">
+        <div class="active-filters" id="active-filters"></div>
+        <div class="form-field sort-field">
+          <label for="f-sort">Сортировка</label>
+          <select id="f-sort">
+            <option value="priority" {% if args.get('sort', 'priority') == 'priority' %}selected{% endif %}>Сначала рекомендуемые</option>
+            <option value="price_asc" {% if args.get('sort') == 'price_asc' %}selected{% endif %}>Цена: по возрастанию</option>
+            <option value="price_desc" {% if args.get('sort') == 'price_desc' %}selected{% endif %}>Цена: по убыванию</option>
+            <option value="nights" {% if args.get('sort') == 'nights' %}selected{% endif %}>Продолжительность</option>
+            <option value="date" {% if args.get('sort') == 'date' %}selected{% endif %}>Дата вылета</option>
+            <option value="newest" {% if args.get('sort') == 'newest' %}selected{% endif %}>Дата добавления</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="catalog-state" id="catalog-loading" hidden>
+        <div class="spinner" aria-hidden="true"></div> Загружаем предложения…
+      </div>
+      <div class="catalog-state catalog-error" id="catalog-error" hidden>
+        Не удалось загрузить туры. <button class="btn btn-outline btn-sm" id="catalog-retry" type="button">Повторить</button>
+      </div>
+
+      <div class="tours-grid" id="catalog-grid">
+        {% for t in tours %}
+        {% include "_tour_card.html" %}
+        {% endfor %}
+      </div>
+
+      <div class="catalog-state" id="catalog-empty" {% if tours %}hidden{% endif %}>
+        По выбранным условиям ничего не найдено. Попробуйте изменить фильтры — например, расширить бюджет или даты.
+      </div>
+
+      <nav class="pagination" id="catalog-pagination" aria-label="Страницы каталога">
+        {% if pages > 1 %}
+        {% for p in range(1, pages + 1) %}
+        <button type="button" class="page-btn {% if p == page %}active{% endif %}" data-page="{{ p }}">{{ p }}</button>
+        {% endfor %}
+        {% endif %}
+      </nav>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/catalog.js') }}" defer></script>
+{% endblock %}

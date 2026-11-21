@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Направления</h1>
+
+<h2>Добавить / изменить</h2>
+<form method="post" action="{{ url_for('admin.destination_save') }}" class="admin-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-row">
+    <div class="form-field"><label>ID (пусто = новое)</label><input type="number" name="id" placeholder=""></div>
+    <div class="form-field"><label>Название *</label><input type="text" name="name"></div>
+    <div class="form-field"><label>Slug *</label><input type="text" name="slug" placeholder="turkey"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-field"><label>Изображение</label><input type="text" name="image" placeholder="img/dest_turkey.jpg"></div>
+    <div class="form-field"><label>Порядок</label><input type="number" name="sort_order" value="0"></div>
+    <div class="form-field checkbox-field"><label class="checkbox"><input type="checkbox" name="is_popular"> <span>Популярное (на главной)</span></label></div>
+  </div>
+  <div class="form-field"><label>Описание</label><textarea name="description" rows="2"></textarea></div>
+  <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+
+{% if destinations %}
+<table class="table">
+  <thead><tr><th>ID</th><th>Название</th><th>Slug</th><th>Популярное</th><th>Порядок</th><th>Туров</th></tr></thead>
+  <tbody>
+    {% for d in destinations %}
+    <tr>
+      <td>{{ d.id }}</td>
+      <td><a href="{{ url_for('destination_page', slug=d.slug) }}" target="_blank">{{ d.name }}</a></td>
+      <td>{{ d.slug }}</td>
+      <td>{{ 'да' if d.is_popular else '' }}</td>
+      <td>{{ d.sort_order }}</td>
+      <td>{{ d.tours_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<p class="muted">Чтобы изменить направление, укажите его ID в форме выше и отправьте с новыми значениями.</p>
+{% endblock %}

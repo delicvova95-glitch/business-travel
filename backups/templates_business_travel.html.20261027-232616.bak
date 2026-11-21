@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Деловые поездки</span></nav>
+    <h1>Деловые поездки</h1>
+    <p class="page-sub">Организация командировок для компаний, государственных и муниципальных организаций: от билета до отчётных документов.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature"><div class="feature-num">01</div><h3>Билеты и отели</h3><p>Подбираем перелёты и проживание под график и бюджет организации.</p></div>
+      <div class="feature"><div class="feature-num">02</div><h3>Трансферы и логистика</h3><p>Организуем встречу в аэропорту и перемещения между городами.</p></div>
+      <div class="feature"><div class="feature-num">03</div><h3>Отчётные документы</h3><p>Предоставляем полный комплект документов для бухгалтерии.</p></div>
+      <div class="feature"><div class="feature-num">04</div><h3>Групповые поездки</h3><p>Организуем выезды делегаций на конференции, форумы и мероприятия.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container prose">
+    <h2 class="section-title">Для государственных и муниципальных организаций</h2>
+    <p>Работаем с организациями государственного и муниципального сектора: оформляем поездки с учётом внутренних регламентов и предоставляем полный комплект отчётных документов.</p>
+    <p>Если поездка связана с конференцией, форумом или выездным мероприятием, посмотрите также раздел <a href="{{ url_for('events') }}">«Организация мероприятий»</a>.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Обсудить сотрудничество</h2>
+    <p class="muted">Расскажите о задаче — подготовим предложение для вашей организации.</p>
+    {% set tour = None %}
+    {% set source_page = request.path %}
+    {% set label_tourists = "Количество сотрудников" %}
+    {% include "_request_form.html" %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

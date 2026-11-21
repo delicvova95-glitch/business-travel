@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Настройки</h1>
+<form method="post" class="admin-form" style="max-width: 560px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-field">
+    <label>Телефон</label>
+    <input type="text" name="phone" value="{{ settings.get('phone', '') }}">
+  </div>
+  <div class="form-field">
+    <label>Email</label>
+    <input type="text" name="email" value="{{ settings.get('email', '') }}">
+  </div>
+  <div class="form-field">
+    <label>Адрес</label>
+    <input type="text" name="address" value="{{ settings.get('address', '') }}">
+  </div>
+  <div class="form-field">
+    <label>Режим работы</label>
+    <input type="text" name="work_hours" value="{{ settings.get('work_hours', '') }}">
+  </div>
+  <div class="form-field">
+    <label>Ссылка на Telegram-канал (если есть)</label>
+    <input type="text" name="telegram" value="{{ settings.get('telegram', '') }}">
+  </div>
+  <h2>Юридические реквизиты</h2>
+  <p class="muted">Публикуйте только после подтверждения, что это юридическое лицо является оператором сайта. Пока поля пустые, на сайте показывается нейтральная формулировка.</p>
+  <div class="form-field">
+    <label>Полное наименование организации</label>
+    <input type="text" name="legal_name" value="{{ settings.get('legal_name', '') }}" placeholder="например, ООО «…»">
+  </div>
+  <div class="form-field">
+    <label>ИНН</label>
+    <input type="text" name="legal_inn" value="{{ settings.get('legal_inn', '') }}">
+  </div>
+  <div class="form-field">
+    <label>ОГРН</label>
+    <input type="text" name="legal_ogrn" value="{{ settings.get('legal_ogrn', '') }}">
+  </div>
+  <div class="form-field">
+    <label>Юридический адрес</label>
+    <input type="text" name="legal_address" value="{{ settings.get('legal_address', '') }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+
+<h2>Telegram-уведомления</h2>
+{% if telegram_configured %}
+<p class="status status-done">Настроено: уведомления о новых заявках отправляются.</p>
+{% else %}
+<div class="prose">
+  <p class="status status-new">Не настроено.</p>
+  <p>Чтобы включить уведомления о заявках:</p>
+  <ol>
+    <li>Создайте бота через @BotFather в Telegram и получите токен.</li>
+    <li>Узнайте id чата (например, через @userinfobot или API getUpdates).</li>
+    <li>Задайте переменные окружения перед запуском сервера:<br>
+      <code>TELEGRAM_BOT_TOKEN=...</code> и <code>TELEGRAM_CHAT_ID=...</code></li>
+    <li>Перезапустите сервер.</li>
+  </ol>
+</div>
+{% endif %}
+{% endblock %}

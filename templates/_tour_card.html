@@ -1,0 +1,33 @@
+{# Карточка тура. Ожидает переменную t (sqlite Row) и currency #}
+<article class="tour-card">
+  <a class="tour-card-img" href="{{ url_for('tour_page', tour_id=t.id) }}">
+    <img src="{{ url_for('static', filename=t.image) }}" alt="{{ t.title }}" loading="lazy">
+    {% if t.is_special %}<span class="badge badge-gold">Специальное предложение</span>{% endif %}
+  </a>
+  <div class="tour-card-body">
+    <div class="tour-card-meta">{{ t.country_name }}{% if t.resort %}, {{ t.resort }}{% endif %}</div>
+    <h3 class="tour-card-title"><a href="{{ url_for('tour_page', tour_id=t.id) }}">{{ t.title }}</a></h3>
+    <div class="tour-card-hotel">
+      {% if t.hotel_name %}{{ t.hotel_name }}{% endif %}
+      {% if t.hotel_stars %}<span class="stars" aria-label="{{ t.hotel_stars }} звёзд">{{ "★" * t.hotel_stars }}</span>{% endif %}
+    </div>
+    <ul class="tour-card-facts">
+      <li>{{ t.date_from[8:10] }}.{{ t.date_from[5:7] }}–{{ t.date_to[8:10] }}.{{ t.date_to[5:7] }}.{{ t.date_to[0:4] }}, {{ t.nights }} ночей</li>
+      <li>{{ t.meal_type }}</li>
+      <li>Вылет из {{ t.departure_city }}</li>
+    </ul>
+    <div class="tour-card-footer">
+      <div>
+        <div class="tour-card-price">{{ t.price|price(currency) }}</div>
+        <div class="tour-card-per">за {{ t.persons }} чел.</div>
+        {% if t.price_needs_confirmation %}
+        <div class="price-note">Стоимость требует подтверждения менеджером</div>
+        {% endif %}
+      </div>
+      <div class="tour-card-actions">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('tour_page', tour_id=t.id) }}">Подробнее</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('tour_page', tour_id=t.id) }}#request">Оставить заявку</a>
+      </div>
+    </div>
+  </div>
+</article>

@@ -1,0 +1,369 @@
+// Первый экран: реалистичная Земля в тёмно-синем космосе и самолёт (GLB-модель)
+// с надписью BUSINESS TRAVEL на фюзеляже. Единая система прогресса 0..1 —
+// только прокрутка страницы (sticky-«взлётная полоса» высотой 300vh):
+//   p=0    — только Земля и звёзды, самолёт скрыт за планетой, текст скрыт;
+//   далее  — самолёт выходит из-за планеты и приближается к камере;
+//   пауза  — борт с надписью обращён к зрителю, проявляется информация;
+//   конец  — самолёт уходит, страница продолжается.
+// Никакого вращения по времени: состояния всех объектов — чистые функции
+// прогресса прокрутки; сглаживание жёстко останавливается в целевом состоянии.
+//
+// Модель самолёта: «Aviao da TAM» (Sketchfab), static/models/aviao_da_tam.glb;
+// ливрея BUSINESS TRAVEL — текстуры static/img/livery/ (make_livery.py).
+// Текстуры Земли: NASA Visible Earth / примеры Three.js (public domain).
+import * as THREE from "three";
+import { GLTFLoader } from "../vendor/GLTFLoader.js";
+
+const container = document.getElementById("hero-canvas");
+if (container) {
+  try {
+    init(container);
+  } catch (err) {
+    console.warn("WebGL недоступен:", err);
+  }
+}
+
+function init(container) {
+  // --- Постоянные сцены --------------------------------------------------------
+  const RADIUS = 2;
+  const SPACE = 0x060a1c;
+
+  const EARTH_Y0 = 4.4;        // поворот Земли при прогрессе 0
+  const EARTH_TRAVEL = 2.8;    // поворот Земли за прогресс 0..1, рад
+  const CLOUD_EXTRA = 0.9;     // доп. поворот облаков относительно поверхности
+
+  const isMobile = window.matchMedia("(max-width: 720px)").matches;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const PLANE_LEN = isMobile ? 1.15 : 1.8; // длина лайнера (мир. ед.), ~2.4x от исходного
+  const CAM_Z = isMobile ? 9.6 : 7.2;
+  const CAM_X = isMobile ? 0.1 : 0.4;
+  const CAM_FOV = isMobile ? 52 : 42;
+  const INFO_AT = 0.5;         // прогресс, с которого проявляется информация
+
+  // --- Прогресс прокрутки 0..1 --------------------------------------------------
+  const hero = document.getElementById("hero");
+
+  function scrollTarget() {
+    const span = Math.max(hero.offsetHeight - window.innerHeight, 1);
+    return THREE.MathUtils.clamp(window.scrollY / span, 0, 1);
+  }
+
+  // Отладочный хук для headless-проверки: ?p=0.5 задаёт прогресс напрямую
+  const pParam = new URLSearchParams(location.search).get("p");
+  const forcedProgress = pParam !== null
+    ? THREE.MathUtils.clamp(parseFloat(pParam) || 0, 0, 1)
+    : null;
+
+  // --- Рендерер, сцена, камера -----------------------------------------------------
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+  renderer.setClearColor(SPACE, 1);
+  container.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(SPACE, 18, 60);
+
+  const camera = new THREE.PerspectiveCamera(CAM_FOV, 1, 0.1, 200);
+  camera.position.set(CAM_X, 0.25, CAM_Z);
+  camera.lookAt(0, 0, 0);
+
+  // --- Свет -----------------------------------------------------------------------
+  const sun = new THREE.DirectionalLight(0xfff3e0, 2.2);
+  sun.position.set(6, 3, 4);
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x223a66, 0.9));
+  const rim = new THREE.DirectionalLight(0x4da6ff, 0.5);
+  rim.position.set(-6, 1, -4);
+  scene.add(rim);
+  // Мягкий заполняющий свет со стороны камеры — лайнер читается на фоне космоса
+  const fill = new THREE.DirectionalLight(0xeaf2ff, 0.9);
+  fill.position.set(0.5, 1.5, 8);
+  scene.add(fill);
+
+  // --- Звёзды (BufferGeometry) ------------------------------------------------------
+  const STAR_COUNT = isMobile ? 900 : 1800;
+  const starPos = new Float32Array(STAR_COUNT * 3);
+  const starCol = new Float32Array(STAR_COUNT * 3);
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const r = 25 + Math.random() * 55;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    starPos[i * 3 + 1] = r * Math.cos(phi);
+    starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    const warm = Math.random() * 0.25;
+    const b = 0.45 + Math.random() * 0.55;
+    starCol[i * 3] = b * (0.75 + warm);
+    starCol[i * 3 + 1] = b * (0.82 + warm * 0.5);
+    starCol[i * 3 + 2] = b;
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+  starGeo.setAttribute("color", new THREE.BufferAttribute(starCol, 3));
+  const starsMat = new THREE.PointsMaterial({
+    size: 0.09, vertexColors: true, transparent: true, opacity: 0.9, fog: false,
+  });
+  scene.add(new THREE.Points(starGeo, starsMat));
+
+  // --- Земля ------------------------------------------------------------------------
+  const texLoader = new THREE.TextureLoader();
+  const earthGroup = new THREE.Group();
+  earthGroup.rotation.x = 0.12;
+  scene.add(earthGroup);
+
+  const earthMat = new THREE.MeshPhongMaterial({ color: 0x24406b, shininess: 14 });
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), earthMat);
+  earthGroup.add(earth);
+
+  texLoader.load("/static/img/earth_atmos_2048.jpg", (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    earthMat.map = t;
+    earthMat.color.set(0xffffff);
+    earthMat.needsUpdate = true;
+  });
+  texLoader.load("/static/img/earth_normal_2048.jpg", (t) => {
+    earthMat.normalMap = t;
+    earthMat.needsUpdate = true;
+  });
+  texLoader.load("/static/img/earth_specular_2048.jpg", (t) => {
+    earthMat.specularMap = t;
+    earthMat.specular = new THREE.Color(0x5a7a9a);
+    earthMat.needsUpdate = true;
+  });
+
+  // Ночные огни (аддитивный слой на поверхности — часть реалистичной Земли)
+  const lightsMat = new THREE.MeshBasicMaterial({
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, opacity: 0.85,
+  });
+  earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(RADIUS * 1.001, 96, 96), lightsMat));
+  texLoader.load("/static/img/earth_lights_2048.png", (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    lightsMat.map = t;
+    lightsMat.needsUpdate = true;
+  });
+
+  // Облака (тонкий реалистичный слой)
+  const cloudsMat = new THREE.MeshLambertMaterial({
+    transparent: true, depthWrite: false, opacity: 0.55,
+  });
+  const clouds = new THREE.Mesh(new THREE.SphereGeometry(RADIUS * 1.015, 64, 64), cloudsMat);
+  earthGroup.add(clouds);
+  texLoader.load("/static/img/earth_clouds_1024.png", (t) => {
+    cloudsMat.map = t;
+    cloudsMat.needsUpdate = true;
+  });
+
+  // Деликатная атмосфера: тонкая кромка, контуры планеты остаются чёткими
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(RADIUS, 64, 32),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        atmosphereColor: { value: new THREE.Color("#5ea8ff") },
+        intensity: { value: 0.32 },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        uniform vec3 atmosphereColor;
+        uniform float intensity;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          float fresnel = pow(1.0 - abs(dot(vNormal, normalize(-vPosition))), 4.0);
+          gl_FragColor = vec4(atmosphereColor, fresnel * intensity);
+        }`,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  atmosphere.scale.setScalar(1.045);
+  scene.add(atmosphere);
+
+  // --- Траектория самолёта: сплайн через ключевые точки -------------------------------
+  // Начало за планетой (скрыт), выход слева, сближение, точка показа справа
+  // от центра (борт к камере), затем уход за правый край.
+  // На узком экране — отдельная траектория: уже и ниже (лайнер целиком в кадре,
+  // не пересекается с текстом), а участок у точки показа идёт поперёк кадра,
+  // чтобы борт с ливреей оставался развёрнутым к зрителю.
+  const rawPts = isMobile
+    ? [
+        [-0.40, -0.26, -3.0],
+        [-1.30, -0.40, -1.2],
+        [-1.05, -0.75, 1.9],
+        [-0.30, -0.80, 3.4],
+        [0.75, -0.65, 3.3],   // точка показа
+        [2.10, -0.45, 2.9],
+        [2.90, 0.30, 0.3],
+      ]
+    : [
+        [-0.9, 0.7, -3.0],
+        [-2.9, 0.5, -1.2],
+        [-2.4, 0.0, 1.9],
+        [-0.6, -0.05, 3.5],
+        [1.7, 0.15, 3.3],     // точка показа
+        [3.8, 0.8, 1.0],
+        [5.0, 1.6, -2.2],
+      ];
+  const pathPts = rawPts.map(([x, y, z]) => new THREE.Vector3(x, y, z));
+  const planePath = new THREE.CatmullRomCurve3(pathPts, false, "centripetal");
+
+  // Пауза в точке показа: параметр кривой держится на T_SHOW,
+  // пока прокрутка проходит соответствующий участок
+  const T_SHOW = 0.62;
+  const smooth = (t) => t * t * (3 - 2 * t);
+  function pathT(p) {
+    if (p < 0.10) return 0;                                   // стоит за планетой
+    if (p < 0.45) return T_SHOW * smooth((p - 0.10) / 0.35);  // выход и сближение
+    if (p < 0.65) return T_SHOW;                              // пауза у камеры
+    return T_SHOW + (1 - T_SHOW) * smooth((p - 0.65) / 0.35); // уход
+  }
+
+  // --- Самолёт (GLB) ----------------------------------------------------------------------
+  const planeCarrier = new THREE.Group(); // положение + ориентация по траектории
+  const planeModel = new THREE.Group();   // нормализация масштаба и ориентации
+  planeCarrier.add(planeModel);
+  scene.add(planeCarrier);
+
+  // Ливрея BUSINESS TRAVEL нанесена на собственные UV-развёртки модели:
+  // подменяем карты трёх материалов заранее подготовленными текстурами
+  // (make_livery.py). Исходный GLB-файл не изменён.
+  const LIVERY_MAPS = {
+    BodyFront: "/static/img/livery/bodyfront.png",   // билборд-титул на носе
+    BodyBackLeft: "/static/img/livery/tail.png",     // киль: тёмно-синий + золото
+    "Materiais.001": "/static/img/livery/tail.png",  // хвостовой конус — в тон килю
+    BodyMiddle: "/static/img/livery/bodymiddle.png", // чистый белый фюзеляж
+    Engine: "/static/img/livery/engine.png",         // монограмма на двигателях
+    "Materiais.017": "/static/img/livery/white.png", // мелкая деталь с мусорной картой
+    "Materiais.006": "/static/img/livery/white.png", // дверца носовой стойки — чистая
+  };
+
+  new GLTFLoader().load("/static/models/aviao_da_tam.glb", (gltf) => {
+    const model = gltf.scene;
+    // Удаляем фоновую фотосферу Sketchfab и мусорную декаль — не часть самолёта
+    const junk = [];
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if (mats.some((m) => m && ["Materiais.018", "Materiais.019"].includes(m.name))) {
+        junk.push(o);
+        return;
+      }
+      const m = o.material;
+      if (m && m.isMeshStandardMaterial) {
+        // В GLB metallicFactor по умолчанию 1.0 — без env-карты металл почти чёрный.
+        // Светлый серебристо-белый фюзеляж без излишнего блеска:
+        m.metalness = Math.min(m.metalness ?? 1, 0.2);
+        if (m.roughness !== undefined) m.roughness = Math.min(m.roughness, 0.6);
+        // Слабое собственное свечение: лайнер читается в тени, но цвета
+        // ливреи (тёмно-синий киль, золото) не вымываются в серый
+        if (m.emissive && m.emissive.getHex() === 0) m.emissive.setHex(0x2e3340);
+        const url = LIVERY_MAPS[m.name];
+        if (url) {
+          texLoader.load(url, (t) => {
+            t.flipY = false; // соглашение glTF о вертикали UV
+            t.colorSpace = THREE.SRGBColorSpace;
+            t.anisotropy = 8;
+            m.map = t;
+            m.needsUpdate = true;
+          });
+        }
+        m.needsUpdate = true;
+      }
+    });
+    junk.forEach((o) => o.parent.remove(o));
+
+    // Нос модели смотрит на -Z: разворачиваем, чтобы нос шёл по +Z носителя
+    const inner = new THREE.Group();
+    inner.add(model);
+    inner.rotation.y = Math.PI;
+    planeModel.add(inner);
+
+    const box = new THREE.Box3().setFromObject(inner);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const longest = Math.max(size.x, size.y, size.z) || 1;
+    const scale = PLANE_LEN / longest;
+    inner.scale.setScalar(scale);
+    inner.position.copy(center).multiplyScalar(-scale);
+  }, undefined, (err) => {
+    console.warn("Не удалось загрузить модель самолёта:", err);
+  });
+
+  // --- Состояние сцены как чистая функция прогресса -----------------------------------------
+  const _pos = new THREE.Vector3();
+  const _tan = new THREE.Vector3();
+  const _aim = new THREE.Vector3();
+
+  function applyState(p) {
+    earthGroup.rotation.y = EARTH_Y0 + p * EARTH_TRAVEL;
+    clouds.rotation.y = p * (EARTH_TRAVEL + CLOUD_EXTRA);
+
+    camera.position.set(CAM_X, 0.25 + p * 0.3, CAM_Z + p * 0.6);
+    camera.lookAt(0, 0, 0);
+
+    const t = pathT(p);
+    planePath.getPointAt(t, _pos);
+    planePath.getTangentAt(t, _tan);
+    planeCarrier.position.copy(_pos);
+    planeCarrier.up.set(0, 1, 0);          // «вверх» лайнера — мировая ось Y, без кренов
+    planeCarrier.lookAt(_aim.copy(_pos).add(_tan)); // нос (+Z носителя) — по ходу полёта
+
+    // Информация о компании проявляется синхронно с прокруткой
+    document.body.classList.toggle("hero-info", p >= INFO_AT);
+  }
+
+  // --- Прокрутка ---------------------------------------------------------------------------
+  let target = forcedProgress !== null ? forcedProgress : scrollTarget();
+  let progress = target;
+  window.addEventListener("scroll", () => {
+    if (forcedProgress === null) target = scrollTarget();
+  }, { passive: true });
+
+  const EPS = 1e-4;
+
+  // --- Цикл рендера --------------------------------------------------------------------------
+  let heroVisible = true;
+  new IntersectionObserver((entries) => {
+    heroVisible = entries[0].isIntersecting;
+  }, { threshold: 0.02 }).observe(hero);
+
+  function resize() {
+    const w = container.clientWidth || 1;
+    const h = container.clientHeight || 1;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (!heroVisible) return;
+
+    if (progress !== target) {
+      if (reducedMotion) {
+        progress = target;
+      } else {
+        // Сглаживание с жёсткой остановкой: при достижении цели движение прекращается
+        progress += (target - progress) * 0.12;
+        if (Math.abs(target - progress) < EPS) progress = target;
+      }
+      applyState(progress);
+    }
+
+    renderer.render(scene, camera);
+  }
+  applyState(progress);
+  requestAnimationFrame(animate);
+}

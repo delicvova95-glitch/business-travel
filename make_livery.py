@@ -1,0 +1,100 @@
+# Генерация ливрейных текстур BUSINESS TRAVEL для модели aviao_da_tam.glb.
+# Исходные текстуры извлечены в temp_tex/ (GLB-файл не изменяется —
+# новые текстуры подменяют карты материалов при загрузке в globe.js).
+# glTF-текстуры хранятся перевёрнутыми по вертикали: редактируем в
+# «модельном» виде (после flip), перед сохранением переворачиваем обратно.
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+NAVY = (18, 48, 88)      # тёмно-синий фирменный
+GOLD = (201, 162, 39)    # золотой фирменный
+WHITE = (255, 255, 255)
+
+FONT = "C:/Windows/Fonts/arialbd.ttf"
+OUT = "static/img/livery"
+os.makedirs(OUT, exist_ok=True)
+
+
+def fit_font(draw, text, max_w, max_h, start):
+    """Самый большой размер шрифта, при котором текст влезает в рамку."""
+    size = start
+    while size > 10:
+        f = ImageFont.truetype(FONT, size)
+        box = draw.textbbox((0, 0), text, font=f)
+        w, h = box[2] - box[0], box[3] - box[1]
+        if w <= max_w and h <= max_h:
+            return f, w, h
+        size -= 4
+    return ImageFont.truetype(FONT, 10), 0, 0
+
+
+def gold_swoosh(draw, x0, x1, y_base, thick, rise):
+    """Тонкая золотая волна под текстом (отсылка к ленте ливреи)."""
+    steps = 60
+    pts_top, pts_bot = [], []
+    for i in range(steps + 1):
+        t = i / steps
+        x = x0 + (x1 - x0) * t
+        y = y_base - rise * (t * t) + 6 * (1 - t)  # лёгкий подъём вправо
+        pts_top.append((x, y))
+        pts_bot.append((x, y + thick * (1 - 0.55 * t)))
+    draw.polygon(pts_top + pts_bot[::-1], fill=GOLD)
+
+
+# --- 1. Нос: img2 (BodyFront, 4096x1024) -------------------------------------
+# Носовая часть закругляется, длинная надпись там ломается — поэтому нос
+# просто выбеливаем (убираем красный билборд TAM), основной титул — на
+# прямом участке фюзеляжа (см. секцию 3).
+im = Image.open("temp_tex/img2.png").convert("RGB").transpose(Image.FLIP_TOP_BOTTOM)
+d = ImageDraw.Draw(im)
+d.rectangle([250, 230, 1830, 730], fill=WHITE)
+im.transpose(Image.FLIP_TOP_BOTTOM).save(f"{OUT}/bodyfront.png")
+
+# --- 2. Киль (хвост): img1 (BodyBackLeft, 512x512) -------------------------------
+# UV-развёртка киля сильно искажает буквы — поэтому только цвет и волна,
+# без текста. Тёмный запас по яркости: сценовое солнце высветляет текстуру.
+tail = Image.new("RGB", (512, 512), (13, 33, 64))
+d = ImageDraw.Draw(tail)
+gold_swoosh(d, -60, 572, 400, 34, 120)
+tail.transpose(Image.FLIP_TOP_BOTTOM).save(f"{OUT}/tail.png")
+
+# --- 3. Средняя часть фюзеляжа: img3 (BodyMiddle, 1024x512) -------------------
+# Здесь прямой цилиндрический участок борта — основной титул BUSINESS TRAVEL
+# размещаем над линией окон (там же была надпись «AIRLINES» в исходнике).
+# UV этого участка сжимает по горизонтали и тянет по вертикали, поэтому текст
+# рисуем отдельно в нормальных пропорциях и вписываем в рамку 880x64 —
+# на фюзеляже он выглядит правильно и крупно.
+im = Image.open("temp_tex/img3.png").convert("RGB").transpose(Image.FLIP_TOP_BOTTOM)
+a = im.load()
+# выбеливаем всё, кроме двери (в модельном виде: x 200-270, y 17-147)
+for y in range(im.height):
+    for x in range(im.width):
+        in_door = 200 <= x <= 270 and 17 <= y <= 147
+        if not in_door and sum(a[x, y]) < 720:
+            a[x, y] = WHITE
+
+d = ImageDraw.Draw(im)
+# разметка показала: в полосе титула (y~300-360) масштаб почти изотропный,
+# ровный участок — примерно x 40..560; дальше к носу UV сжимается
+f, tw, th = fit_font(d, "BUSINESS TRAVEL", 420, 62, 90)
+# сдвиг вправо вдоль фюзеляжа: x0 = 60 + 10 (конец текста x≈464 —
+# максимум перед закруглением носа, дальше буквы обрезаются)
+x0, y0 = 70, 296 + (62 - th) // 2
+w1 = d.textlength("BUSINESS", font=f)
+d.text((x0, y0), "BUSINESS", font=f, fill=NAVY)
+d.text((x0 + w1, y0), " TRAVEL", font=f, fill=GOLD)
+gold_swoosh(d, x0, x0 + tw, y0 + th + 8, 8, 20)
+im.transpose(Image.FLIP_TOP_BOTTOM).save(f"{OUT}/bodymiddle.png")
+
+# --- 4. Двигатели: img8 (Engine, 512x512) — вместо декали «BRASIL» ----------------
+eng = Image.new("RGB", (512, 512), WHITE)
+d = ImageDraw.Draw(eng)
+f, tw, th = fit_font(d, "BT", 170, 130, 170)
+d.text((250 - tw / 2, 240 - th / 2 - 20), "BT", font=f, fill=NAVY)
+gold_swoosh(d, 250 - tw / 2 - 15, 250 + tw / 2 + 15, 240 + th / 2 + 8, 10, 25)
+eng.transpose(Image.FLIP_TOP_BOTTOM).save(f"{OUT}/engine.png")
+
+# --- 5. Белая заглушка для мелких деталей с мусорной текстурой ---------------------
+Image.new("RGB", (64, 64), WHITE).save(f"{OUT}/white.png")
+
+print("готово:", os.listdir(OUT))

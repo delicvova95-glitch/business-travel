@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Организация мероприятий</span></nav>
+    <h1>Организация мероприятий</h1>
+    <p class="page-sub">Корпоративные мероприятия, конференции, форумы и выездные мероприятия под ключ.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature"><div class="feature-num">01</div><h3>Конференции и форумы</h3><p>Подбираем площадку, организуем размещение и трансферы участников.</p></div>
+      <div class="feature"><div class="feature-num">02</div><h3>Корпоративные мероприятия</h3><p>Помогаем с программой, логистикой и проживанием для команд любого размера.</p></div>
+      <div class="feature"><div class="feature-num">03</div><h3>Выездные мероприятия</h3><p>Организуем выезды в другие города: перелёты, отели, перемещения между площадками.</p></div>
+      <div class="feature"><div class="feature-num">04</div><h3>Сопровождение</h3><p>Координируем поездку на всех этапах и остаёмся на связи до завершения мероприятия.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container prose">
+    <h2 class="section-title">Как мы работаем</h2>
+    <p>Расскажите о формате и задачах мероприятия — менеджер уточнит детали, предложит варианты площадок и логистики, а после согласования возьмёт организацию на себя: размещение, перелёты, трансферы и сопровождение участников.</p>
+    <p>Мероприятие часто совмещается с деловой программой — в этом случае помогает наш отдел <a href="{{ url_for('business_travel') }}">деловых поездок</a>.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Обсудить мероприятие</h2>
+    <p class="muted">Опишите формат, даты и число участников — подготовим предложение.</p>
+    {% set tour = None %}
+    {% set source_page = request.path %}
+    {% set label_country = "Площадка или город мероприятия" %}
+    {% set label_tourists = "Количество участников" %}
+    {% include "_request_form.html" %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head page-head-img" style="background-image: url('{{ url_for('static', filename='img/hero_events.jpg') }}')">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Организация мероприятий</span></nav>
+    <h1>Организация мероприятий</h1>
+    <p class="page-sub">Корпоративные мероприятия, конференции, форумы и выездные события под ключ.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Чем мы можем помочь</h2>
+    </div>
+    <div class="prose">
+      <p class="lead">Мы берём на себя организационную часть мероприятия, чтобы вы могли сосредоточиться на содержании и гостях.</p>
+      <p>Работаем с конференциями, форумами, корпоративными праздниками и выездными мероприятиями. Объём нашей работы всегда согласуется заранее: от отдельных задач до организации под ключ.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Задачи, которые мы берём на себя</h2>
+    <div class="features-grid">
+      <div class="feature"><div class="feature-num">01</div><h3>Площадка</h3><p>Подбираем площадку под формат и число участников, согласовываем условия и тайминг.</p></div>
+      <div class="feature"><div class="feature-num">02</div><h3>Размещение участников</h3><p>Отели, перелёты и трансферы для участников из других городов.</p></div>
+      <div class="feature"><div class="feature-num">03</div><h3>Логистика</h3><p>Перемещения между площадками, встреча гостей, транспорт в дни мероприятия.</p></div>
+      <div class="feature"><div class="feature-num">04</div><h3>Программа</h3><p>Помогаем составить программу и тайминг, учитываем деловую и неформальную части.</p></div>
+      <div class="feature"><div class="feature-num">05</div><h3>Выездные форматы</h3><p>Организуем мероприятия в других городах: маршрут, проживание, сопровождение группы.</p></div>
+      <div class="feature"><div class="feature-num">06</div><h3>Сопровождение</h3><p>Координируем процесс на всех этапах и остаёмся на связи до завершения.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="media-split">
+      <div>
+        <img src="{{ url_for('static', filename='img/sec_events.jpg') }}" alt="Сервированный стол на корпоративном мероприятии" loading="lazy">
+      </div>
+      <div>
+        <h2 class="section-title">Как проходит работа</h2>
+        <ul class="check-list">
+          <li>Вы описываете формат, даты и число участников</li>
+          <li>Мы предлагаем варианты площадок и схему логистики</li>
+          <li>Согласовываем программу, смету и объём наших задач</li>
+          <li>Берём организацию на себя и сопровождаем мероприятие</li>
+        </ul>
+        <p class="muted">Если мероприятие совмещается с деловой программой или поездкой делегации, помогает направление <a href="{{ url_for('business_travel') }}">деловых поездок</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="container">
+    <h2 class="section-title">Обсудить мероприятие</h2>
+    <p>Опишите формат, даты и число участников — подготовим предложение.</p>
+    <div class="form-card" style="margin-top: 24px;">
+      {% set tour = None %}
+      {% set source_page = request.path %}
+      {% set show_org = True %}
+      {% set label_country = "Площадка или город мероприятия" %}
+      {% set label_tourists = "Количество участников" %}
+      {% include "_request_form.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

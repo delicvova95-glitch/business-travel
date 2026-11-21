@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>Заявки</h1>
+<div class="tabs">
+  <a class="tab {% if not current_status %}active{% endif %}" href="{{ url_for('admin.requests_list') }}">Все</a>
+  {% for s in statuses %}
+  <a class="tab {% if current_status == s %}active{% endif %}" href="{{ url_for('admin.requests_list', status=s) }}">{{ {'new': 'Новые', 'in_progress': 'В работе', 'done': 'Завершённые'}[s] }}</a>
+  {% endfor %}
+</div>
+{% if requests %}
+<table class="table">
+  <thead><tr><th>Номер</th><th>Имя</th><th>Телефон</th><th>Email</th><th>Направление</th><th>Даты</th><th>Туристы</th><th>Бюджет</th><th>Тур</th><th>Источник</th><th>Комментарий</th><th>Telegram</th><th>Статус</th><th>Дата</th><th></th></tr></thead>
+  <tbody>
+    {% for r in requests %}
+    <tr>
+      <td>#{{ r.public_number }}</td>
+      <td>{{ r.name }}</td>
+      <td>{{ r.phone }}</td>
+      <td>{{ r.email or '—' }}</td>
+      <td>{{ r.country or '—' }}</td>
+      <td>{{ r.dates or '—' }}</td>
+      <td>{{ r.tourists or '—' }}</td>
+      <td>{{ r.budget or '—' }}</td>
+      <td>{% if r.tour_title %}<a href="{{ url_for('tour_page', tour_id=r.tour_id) }}" target="_blank">{{ r.tour_title }}</a>{% else %}—{% endif %}</td>
+      <td class="muted">{{ r.source_page or '—' }}</td>
+      <td class="muted">{{ r.comment or '—' }}</td>
+      <td>
+        {{ {'sent': 'отправлено', 'failed': 'ошибка', 'disabled': 'не настроено', 'pending': 'ожидает'}[r.telegram_status] }}
+        {% if r.telegram_status in ('failed', 'disabled') %}
+        <form method="post" action="{{ url_for('admin.request_resend_telegram', req_id=r.id) }}" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Повторить</button>
+        </form>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('admin.request_set_status', req_id=r.id) }}" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select name="status" onchange="this.form.submit()">
+            {% for s in statuses %}
+            <option value="{{ s }}" {% if r.status == s %}selected{% endif %}>{{ {'new': 'Новая', 'in_progress': 'В работе', 'done': 'Завершена'}[s] }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </td>
+      <td class="muted">{{ r.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Заявок нет.</p>
+{% endif %}
+{% endblock %}

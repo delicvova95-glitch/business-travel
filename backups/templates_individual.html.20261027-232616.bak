@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Индивидуальные путешествия</span></nav>
+    <h1>Индивидуальные путешествия</h1>
+    <p class="page-sub">Вы описываете пожелания — менеджер помогает составить маршрут и продумывает каждую деталь поездки.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature"><div class="feature-num">01</div><h3>Ваши пожелания</h3><p>Расскажите, каким вы видите путешествие: направление, темп, бюджет, интересы.</p></div>
+      <div class="feature"><div class="feature-num">02</div><h3>Маршрут с менеджером</h3><p>Вместе составляем маршрут и подбираем перелёты, отели и перемещения.</p></div>
+      <div class="feature"><div class="feature-num">03</div><h3>Документы и страховка</h3><p>Помогаем с визовыми и страховыми вопросами, объясняем условия каждого предложения.</p></div>
+      <div class="feature"><div class="feature-num">04</div><h3>На связи в поездке</h3><p>Сопровождаем вас на всех этапах — от заявки до возвращения домой.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container prose">
+    <h2 class="section-title">С чего начать</h2>
+    <p>Можно начать с готовых предложений: посмотрите <a href="{{ url_for('catalog') }}">каталог туров</a> и <a href="{{ url_for('specials') }}">специальные предложения</a>. Если хотите маршрут полностью под себя — просто опишите пожелания в заявке ниже, и менеджер подготовит варианты.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Описать пожелания</h2>
+    <p class="muted">Напишите, куда и как хотите поехать, — менеджер предложит варианты маршрута.</p>
+    {% set tour = None %}
+    {% set source_page = request.path %}
+    {% set label_country = "Куда хотите поехать" %}
+    {% include "_request_form.html" %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% set currency = request.args.get('currency', 'RUB') %}
+
+{% block content %}
+<section class="page-head page-head-img" style="background-image: linear-gradient(rgba(16,35,63,.72), rgba(16,35,63,.72)), url('{{ url_for('static', filename=dest.image) }}')">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>{{ dest.name }}</span></nav>
+    <h1>{{ dest.name }}</h1>
+    <p class="page-sub">{{ dest.description }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {% if tours %}
+    <p class="page-sub">Доступных предложений: {{ tours|length }}</p>
+    <div class="tours-grid">
+      {% for t in tours %}
+      {% include "_tour_card.html" %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="catalog-state">По этому направлению сейчас нет активных предложений. Оставьте заявку — менеджер подберёт варианты индивидуально.</div>
+    <div class="section-more"><a class="btn btn-primary" href="{{ url_for('contacts') }}#request">Оставить заявку</a></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

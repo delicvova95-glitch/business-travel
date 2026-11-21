@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script type="importmap">
+{ "imports": { "three": "{{ url_for('static', filename='vendor/three.module.js') }}" } }
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- 1. Первый экран: 3D-сцена Земли и самолёта (механика не меняется) -->
+<section class="hero" id="hero">
+  <div class="hero-stage">
+    <div class="hero-canvas" id="hero-canvas" aria-hidden="true"></div>
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+      <p class="hero-kicker">Туристическое агентство · Томск</p>
+      <p class="hero-brand" aria-hidden="true">Business Travel</p>
+      <h1>Мир возможностей начинается с&nbsp;путешествия</h1>
+      <p class="hero-sub">Организуем мероприятия, деловые поездки и&nbsp;индивидуальные путешествия, продумывая каждую деталь.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold btn-lg" href="#contacts">Обсудить задачу</a>
+        <a class="btn btn-ghost btn-lg" href="#services">Наши направления</a>
+      </div>
+    </div>
+    <div class="hero-scroll-hint" aria-hidden="true">Листайте вниз</div>
+  </div>
+</section>
+
+<!-- 2. О компании -->
+<section class="section" id="about-brief">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Агентство деловых поездок и&nbsp;путешествий</h2>
+    </div>
+    <div>
+      <p>Business Travel — туристическое агентство из Томска. Мы организуем корпоративные мероприятия, деловые поездки и индивидуальные путешествия — от первой идеи до возвращения участников домой.</p>
+      <p>Наши клиенты — компании, государственные и муниципальные организации, а также частные путешественники. Для каждого из них мы берём на себя организационные вопросы: маршруты, билеты, отели, трансферы, площадки и документы.</p>
+      <a class="btn btn-outline" href="{{ url_for('about') }}">Подробнее о компании</a>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Три направления -->
+<section class="section section-alt" id="services">
+  <div class="container">
+    <h2 class="section-title">Направления работы</h2>
+    <div class="dir-grid">
+      <article class="dir-card dir-card-featured reveal">
+        <a class="dir-card-img" href="{{ url_for('events') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_events.jpg') }}" alt="Участники конференции в зале" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <span class="dir-tag">Главное направление</span>
+          <h3>Организация мероприятий</h3>
+          <p>Корпоративные мероприятия, конференции, форумы и выездные события под ключ: от площадки до сопровождения участников.</p>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('events') }}">Обсудить мероприятие</a>
+        </div>
+      </article>
+      <article class="dir-card reveal">
+        <a class="dir-card-img" href="{{ url_for('business_travel') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_business.jpg') }}" alt="Крыло самолёта над облаками" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <h3>Деловые поездки</h3>
+          <p>Организация командировок и поездок делегаций: маршрут, билеты, отели и помощь с логистикой.</p>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('business_travel') }}">Организовать поездку</a>
+        </div>
+      </article>
+      <article class="dir-card reveal">
+        <a class="dir-card-img" href="{{ url_for('individual') }}" tabindex="-1" aria-hidden="true">
+          <img src="{{ url_for('static', filename='img/dir_individual.jpg') }}" alt="Лодка на горном озере" loading="lazy">
+        </a>
+        <div class="dir-card-body">
+          <h3>Индивидуальные путешествия</h3>
+          <p>Вы описываете пожелания — менеджер помогает составить маршрут и продумывает каждую деталь.</p>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('individual') }}">Обсудить путешествие</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Организация мероприятий — самый подробный блок -->
+<section class="section section-dark">
+  <div class="container">
+    <div class="media-split">
+      <div>
+        <img src="{{ url_for('static', filename='img/sec_events.jpg') }}" alt="Сервированный стол на корпоративном мероприятии" loading="lazy">
+      </div>
+      <div>
+        <h2 class="section-title">Организация мероприятий</h2>
+        <p>Конференции, форумы, корпоративные праздники и выездные мероприятия. Мы берём на себя организационную часть, чтобы вы могли заняться содержанием и гостями.</p>
+        <ul class="check-list">
+          <li>Подбор площадки и согласование условий с площадкой</li>
+          <li>Размещение участников: отели, перелёты, трансферы</li>
+          <li>Логистика в дни мероприятия и перемещения между площадками</li>
+          <li>Помощь с программой и таймингом</li>
+          <li>Координация и сопровождение до завершения</li>
+        </ul>
+        <p class="muted">Работаем по понятной схеме: обсуждаем задачу, готовим предложение, согласовываем детали и сопровождаем мероприятие.</p>
+        <a class="btn btn-gold" href="{{ url_for('events') }}">Обсудить мероприятие</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Деловые поездки -->
+<section class="section">
+  <div class="container">
+    <div class="media-split">
+      <div>
+        <h2 class="section-title">Деловые поездки</h2>
+        <p>Организуем командировки сотрудников и поездки делегаций для компаний, государственных и муниципальных организаций.</p>
+        <ul class="check-list">
+          <li>Маршрут и график поездки под ваши задачи</li>
+          <li>Билеты, отели и трансферы с учётом бюджета</li>
+          <li>Координация деталей для групп и делегаций</li>
+          <li>Полный комплект отчётных документов</li>
+        </ul>
+        <p class="muted">Программу поездки согласовываем заранее — вы знаете, что входит в организацию, до начала оформления.</p>
+        <a class="btn btn-primary" href="{{ url_for('business_travel') }}">Организовать деловую поездку</a>
+      </div>
+      <div>
+        <img src="{{ url_for('static', filename='img/hero_business.jpg') }}" alt="Пассажир с чемоданом в аэропорту" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Индивидуальные путешествия -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="media-split">
+      <div>
+        <img src="{{ url_for('static', filename='img/sec_individual.jpg') }}" alt="Карта, фотоаппарат и рюкзак — планирование путешествия" loading="lazy">
+      </div>
+      <div>
+        <h2 class="section-title">Индивидуальные путешествия</h2>
+        <p>Здесь нет витрины готовых туров: каждое путешествие начинается с ваших пожеланий. Вы описываете интересы, даты и бюджет — менеджер помогает составить маршрут и подбирает решение.</p>
+        <ul class="check-list">
+          <li>Расскажите, каким вы видите путешествие: направление, темп, интересы</li>
+          <li>Вместе с менеджером составьте маршрут и программу</li>
+          <li>Подберём перелёты, отели и перемещения между точками</li>
+          <li>Поможем с документами и страховкой, останемся на связи в поездке</li>
+        </ul>
+        <a class="btn btn-primary" href="{{ url_for('individual') }}">Обсудить путешествие</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. Для организаций -->
+<section class="section section-dark" id="organizations">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">Для организаций</h2>
+      <p>Работаем с компаниями, государственными и муниципальными организациями. Берём на себя организационную часть мероприятий и поездок, чтобы ваши сотрудники занимались своими задачами.</p>
+      <a class="btn btn-gold" href="#contacts">Обсудить задачу</a>
+    </div>
+    <div>
+      <ul class="check-list">
+        <li>Готовим предложение под вашу задачу или техническое задание</li>
+        <li>Согласовываем состав услуг, сроки и бюджет до начала работы</li>
+        <li>Единая точка контакта по проекту — ответственный менеджер</li>
+        <li>Организационное сопровождение мероприятия или поездки</li>
+        <li>Подготовка сопроводительных и отчётных документов в согласованном объёме</li>
+      </ul>
+      <p class="muted">В заявке можно указать название организации и должность — менеджер будет знать контекст обращения ещё до первого звонка.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Как проходит сотрудничество -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Как проходит сотрудничество</h2>
+    <ol class="steps steps-6">
+      <li class="reveal"><span>1</span><h3>Заявка</h3><p>Вы отправляете заявку с описанием задачи — через форму, по телефону или в мессенджере.</p></li>
+      <li class="reveal"><span>2</span><h3>Уточнение требований</h3><p>Менеджер уточняет цели, количество участников, сроки и другие условия.</p></li>
+      <li class="reveal"><span>3</span><h3>Предложение</h3><p>Готовим предложение с составом услуг и стоимостью.</p></li>
+      <li class="reveal"><span>4</span><h3>Согласование</h3><p>Согласовываем детали и порядок оформления сотрудничества.</p></li>
+      <li class="reveal"><span>5</span><h3>Реализация</h3><p>Организуем согласованные услуги и координируем все детали.</p></li>
+      <li class="reveal"><span>6</span><h3>Завершение</h3><p>Завершаем проект и предоставляем предусмотренные документы.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 9. Проекты: заготовка под реальные кейсы -->
+<section class="section section-alt" id="projects">
+  <div class="container">
+    <h2 class="section-title">Наши проекты</h2>
+    <div class="projects-empty reveal">
+      <p>Мы готовим истории реализованных проектов с фотографиями, задачей, форматом и результатом. Материалы публикуются только после согласования с заказчиками — раздел будет пополняться по мере их подготовки.</p>
+      <a class="btn btn-outline" href="{{ url_for('projects') }}">Форматы нашей работы</a>
+    </div>
+    {# Структура для будущих реальных кейсов — раскомментировать и заполнить:
+    <div class="projects-grid">
+      <article class="project-card reveal">
+        <img src="{{ url_for('static', filename='img/projects/....jpg') }}" alt="...">
+        <div class="project-card-body">
+          <span class="project-card-tag">Мероприятие</span>
+          <h3>Название проекта</h3>
+          <p>Задача, формат и результат.</p>
+        </div>
+      </article>
+    </div>
+    #}
+  </div>
+</section>
+
+<!-- 10. Почему выбирают Business Travel -->
+<section class="section section-dark">
+  <div class="container">
+    <h2 class="section-title">Почему выбирают Business Travel</h2>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <div class="feature-num">01</div>
+        <h3>Экономия времени</h3>
+        <p>Поиск, бронирование и согласования берём на себя — вы занимаетесь своими делами.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">02</div>
+        <h3>Индивидуальный подход</h3>
+        <p>Программу и маршрут составляем под ваши задачи, а не предлагаем шаблонные решения.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">03</div>
+        <h3>Координация вопросов</h3>
+        <p>Билеты, отели, трансферы, площадки и документы — организационные детали в одних руках.</p>
+      </div>
+      <div class="feature reveal">
+        <div class="feature-num">04</div>
+        <h3>Сопровождение</h3>
+        <p>Остаёмся на связи в согласованном объёме — от первой заявки до завершения.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11. Частые вопросы -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Частые вопросы</h2>
+    <div class="faq-list">
+      <details class="reveal"><summary>Можно ли поручить вам мероприятие полностью?</summary><p>Да. Мы можем взять на себя площадку, логистику, размещение и трансферы участников, а также координацию в дни мероприятия. Точный объём работ согласовываем при обсуждении задачи.</p></details>
+      <details class="reveal"><summary>Работаете ли вы с государственными и муниципальными организациями?</summary><p>Да. Организуем деловые поездки с учётом внутренних регламентов и предоставляем полный комплект отчётных документов.</p></details>
+      <details class="reveal"><summary>У меня нет готовой идеи путешествия, только пожелания. Это подходит?</summary><p>Да, именно так устроен индивидуальный формат. Опишите интересы, даты и бюджет — менеджер предложит варианты маршрута.</p></details>
+      <details class="reveal"><summary>Сколько времени занимает подготовка предложения?</summary><p>Срок зависит от сложности задачи. Менеджер называет ориентировочные сроки после первого обсуждения.</p></details>
+      <details class="reveal"><summary>Как начать сотрудничество?</summary><p>Оставьте заявку через форму ниже или свяжитесь с нами удобным способом. Дальше — обсуждение задачи и подготовка предложения.</p></details>
+      <details class="reveal"><summary>Заявка на сайте ни к чему не обязывает?</summary><p>Заявка — это начало разговора, а не бронирование. Условия фиксируются только после согласования с вами.</p></details>
+    </div>
+    <div class="section-more"><a class="btn btn-outline" href="{{ url_for('faq') }}">Все вопросы</a></div>
+  </div>
+</section>
+
+<!-- 12. Контакты и форма заявки -->
+<section class="section section-alt" id="contacts">
+  <div class="container split">
+    <div class="contact-panel">
+      <h2 class="section-title">Свяжитесь с нами</h2>
+      <dl class="contact-list">
+        {% if settings.phone and '_' not in settings.phone %}
+        <div><dt>Телефон</dt><dd><a href="tel:{{ settings.phone|replace(' ','')|replace('(','')|replace(')','')|replace('-','') }}">{{ settings.phone }}</a></dd></div>
+        {% endif %}
+        {% if settings.email %}<div><dt>Email</dt><dd><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></dd></div>{% endif %}
+        {% if settings.address %}<div><dt>Адрес</dt><dd>{{ settings.address }}</dd></div>{% endif %}
+        {% if settings.work_hours %}<div><dt>Режим работы</dt><dd>{{ settings.work_hours }}</dd></div>{% endif %}
+      </dl>
+      <p class="muted">Или оставьте заявку: выберите направление и удобный способ связи — менеджер ответит в рабочее время.</p>
+    </div>
+    <div class="form-card">
+      <h2 class="section-title">Оставить заявку</h2>
+      {% set tour = None %}
+      {% set source_page = request.path %}
+      {% set show_service = True %}
+      {% set show_org = True %}
+      {% set label_tourists = "Количество участников" %}
+      {% include "_request_form.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/globe.js') }}" type="module" defer></script>
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

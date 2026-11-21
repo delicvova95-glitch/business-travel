@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <nav class="breadcrumbs" aria-label="Хлебные крошки"><a href="{{ url_for('index') }}">Главная</a> / <span>Контакты</span></nav>
+    <h1>Контакты</h1>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div class="prose">
+      <h2>Как с нами связаться</h2>
+      <dl class="contact-list">
+        {% if settings.phone and '_' not in settings.phone %}
+        <div><dt>Телефон</dt><dd><a href="tel:{{ settings.phone|replace(' ','')|replace('(','')|replace(')','')|replace('-','') }}">{{ settings.phone }}</a></dd></div>
+        {% endif %}
+        {% if settings.email %}<div><dt>Email</dt><dd><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></dd></div>{% endif %}
+        {% if settings.address %}<div><dt>Адрес</dt><dd>{{ settings.address }}</dd></div>{% endif %}
+        {% if settings.work_hours %}<div><dt>Режим работы</dt><dd>{{ settings.work_hours }}</dd></div>{% endif %}
+      </dl>
+      <p class="muted">Отвечаем на заявки с сайта в рабочее время.</p>
+    </div>
+    <div>
+      <h2 class="section-title">Оставить заявку</h2>
+      {% set tour = None %}
+      {% set source_page = request.path %}
+      {% include "_request_form.html" %}
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container split">
+    <div class="prose">
+      <h2>Документы</h2>
+      <ul class="doc-list">
+        <li><a href="{{ url_for('privacy') }}">Политика обработки персональных данных</a></li>
+        <li><a href="{{ url_for('consent') }}">Согласие на обработку персональных данных</a></li>
+        <li><a href="{{ url_for('terms') }}">Условия и правила подачи заявки</a></li>
+      </ul>
+    </div>
+    <div class="prose">
+      <h2>Реквизиты</h2>
+      {% if settings.legal_name %}
+      <dl class="contact-list">
+        <div><dt>Наименование</dt><dd>{{ settings.legal_name }}</dd></div>
+        {% if settings.legal_inn %}<div><dt>ИНН</dt><dd>{{ settings.legal_inn }}</dd></div>{% endif %}
+        {% if settings.legal_ogrn %}<div><dt>ОГРН</dt><dd>{{ settings.legal_ogrn }}</dd></div>{% endif %}
+        {% if settings.legal_address %}<div><dt>Юридический адрес</dt><dd>{{ settings.legal_address }}</dd></div>{% endif %}
+      </dl>
+      {% else %}
+      <p class="muted">Юридические реквизиты предоставляются по запросу — напишите нам или укажите это в заявке.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/forms.js') }}" defer></script>
+{% endblock %}

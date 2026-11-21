@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Тест модели самолёта</title>
+<style>
+  body { margin: 0; background: #060a1c; overflow: hidden; }
+  #info { position: fixed; top: 8px; left: 8px; color: #9db4d8; font: 13px monospace; white-space: pre; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "/static/vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="info">загрузка…</div>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "/static/vendor/GLTFLoader.js";
+import { OrbitControls } from "/static/vendor/OrbitControls.js";
+
+const q = new URLSearchParams(location.search);
+const HIDE_BG = q.get("raw") === null;          // raw=1 — показать всё как есть
+const LIVERY = q.get("livery") !== null;        // livery=1 — подменить текстуры
+const AZ = parseFloat(q.get("az") || "0.6");    // азимут камеры, рад
+const EL = parseFloat(q.get("el") || "0.25");
+const DIST = parseFloat(q.get("d") || "22");
+const TZ = parseFloat(q.get("tz") || "0");      // сдвиг цели вдоль Z
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060a1c);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(
+  DIST * Math.cos(EL) * Math.sin(AZ),
+  DIST * Math.sin(EL),
+  DIST * Math.cos(EL) * Math.cos(AZ),
+);
+
+const sun = new THREE.DirectionalLight(0xfff3e0, 2.2); sun.position.set(6, 3, 4); scene.add(sun);
+scene.add(new THREE.AmbientLight(0x223a66, 0.9));
+const rim = new THREE.DirectionalLight(0x4da6ff, 0.5); rim.position.set(-6, 1, -4); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xeaf2ff, 0.9); fill.position.set(0.5, 1.5, 8); scene.add(fill);
+
+new GLTFLoader().load("/static/models/aviao_da_tam.glb", (gltf) => {
+  const model = gltf.scene;
+  const removed = [];
+  if (HIDE_BG) {
+    const toRemove = [];
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      // фоновая фотосфера Sketchfab (217 м единиц) и мусорные декали
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const bad = mats.some((m) => m && ["Materiais.018", "Materiais.019"].includes(m.name));
+      o.geometry.computeBoundingBox();
+      const s = o.geometry.boundingBox.getSize(new THREE.Vector3());
+      if (bad) { toRemove.push(o); removed.push(o.name + "/" + mats.map((m) => m && m.name).join(",")); }
+    });
+    toRemove.forEach((o) => o.parent.remove(o));
+  }
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const c = box.getCenter(new THREE.Vector3());
+  if (LIVERY) {
+    const MAPS = {
+      BodyFront: "bodyfront.png", BodyBackLeft: "tail.png", "Materiais.001": "tail.png",
+      BodyMiddle: "bodymiddle.png", Engine: "engine.png", "Materiais.017": "white.png",
+      "Materiais.006": "white.png",
+    };
+    const tl = new THREE.TextureLoader();
+    model.traverse((o) => {
+      const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      mats.forEach((m) => {
+        if (m && MAPS[m.name]) {
+          tl.load("/static/img/livery/" + MAPS[m.name], (t) => {
+            t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+            m.map = t; m.needsUpdate = true;
+          });
+        }
+        if (m && m.isMeshStandardMaterial) {
+          m.metalness = Math.min(m.metalness ?? 1, 0.2);
+          if (m.roughness !== undefined) m.roughness = Math.min(m.roughness, 0.6);
+          if (m.emissive && m.emissive.getHex() === 0) m.emissive.setHex(0x2e3340);
+          m.needsUpdate = true;
+        }
+      });
+    });
+  }
+  document.getElementById("info").textContent =
+    "size: " + size.x.toFixed(1) + " x " + size.y.toFixed(1) + " x " + size.z.toFixed(1) +
+    "\ncenter: " + c.x.toFixed(1) + "," + c.y.toFixed(1) + "," + c.z.toFixed(1) +
+    "\nremoved: " + (removed.join(", ") || "—") +
+    "\naz=" + AZ.toFixed(2) + " el=" + EL.toFixed(2);
+  scene.add(model);
+  // осевые маркеры: красный +X, зелёный +Y, синий +Z
+  const mk = (dir, col) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: col }));
+    m.position.copy(dir); scene.add(m);
+  };
+  mk(new THREE.Vector3(12, 0, 0), 0xff4444);
+  mk(new THREE.Vector3(0, 12, 0), 0x44ff44);
+  mk(new THREE.Vector3(0, 0, 12), 0x4444ff);
+}, undefined, (e) => { document.getElementById("info").textContent = "ОШИБКА: " + e; });
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, TZ);
+camera.position.z += TZ;
+function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+animate();
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

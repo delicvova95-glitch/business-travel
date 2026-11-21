@@ -1,0 +1,566 @@
+"""Business Travel — публичная часть сайта и API."""
+import os
+import re
+import uuid
+
+from flask import (Flask, abort, jsonify, redirect, render_template, request,
+                   url_for)
+
+import db as database
+import telegram_notify
+from security import (admin_login_limiter, client_ip, csrf_protect,
+                      get_csrf_token, request_form_limiter)
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.config["MAX_CONTENT_LENGTH"] = 256 * 1024  # заявки не должны быть огромными
+
+PER_PAGE = 12
+
+# Приблизительные курсы для отображения (обновляет владелец; не для расчётов)
+CURRENCY_RATES = {"RUB": (1.0, "₽"), "USD": (90.0, "$"), "EUR": (98.0, "€")}
+
+PHONE_RE = re.compile(r"^\+?[\d\s\-()]{10,18}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+# ---------------------------------------------------------------------------
+# Общие хелперы
+# ---------------------------------------------------------------------------
+
+def get_settings():
+    conn = database.get_db()
+    rows = conn.execute("SELECT key, value FROM settings").fetchall()
+    conn.close()
+    return {r["key"]: r["value"] for r in rows}
+
+
+@app.context_processor
+def inject_globals():
+    return {
+        "settings": get_settings(),
+        "csrf_token": get_csrf_token,
+        "telegram_configured": telegram_notify.is_configured(),
+    }
+
+
+@app.before_request
+def before_request():
+    csrf_protect()
+
+
+def format_price(price, currency="RUB"):
+    rate, symbol = CURRENCY_RATES.get(currency, CURRENCY_RATES["RUB"])
+    value = round(price / rate)
+    return f"{value:,}".replace(",", " ") + f" {symbol}"
+
+
+app.jinja_env.filters["price"] = format_price
+
+
+def query_tours(args):
+    """Серверная фильтрация, сортировка и пагинация каталога."""
+    where = ["t.status = 'active'"]
+    params = []
+
+    def add(cond, *vals):
+        where.append(cond)
+        params.extend(vals)
+
+    if args.get("country"):
+        add("d.slug = ?", args["country"])
+    if args.get("resort"):
+        add("t.resort LIKE ?", f"%{args['resort'].strip()}%")
+    if args.get("departure_city"):
+        add("t.departure_city = ?", args["departure_city"])
+    if args.get("date_from"):
+        add("t.date_to >= ?", args["date_from"])
+    if args.get("date_to"):
+        add("t.date_from <= ?", args["date_to"])
+    if args.get("nights_min", type=int):
+        add("t.nights >= ?", args["nights_min"])
+    if args.get("nights_max", type=int):
+        add("t.nights <= ?", args["nights_max"])
+    if args.get("price_min", type=int):
+        add("t.price >= ?", args["price_min"])
+    if args.get("price_max", type=int):
+        add("t.price <= ?", args["price_max"])
+    if args.get("stars", type=int):
+        add("t.hotel_stars >= ?", args["stars"])
+    if args.get("meal_type"):
+        add("t.meal_type = ?", args["meal_type"])
+    if args.get("vacation_type"):
+        add("t.vacation_type = ?", args["vacation_type"])
+    if args.get("tourists", type=int):
+        add("t.persons >= ?", args["tourists"])
+    if args.get("special") == "1":
+        add("t.is_special = 1")
+
+    sorts = {
+        "price_asc": "t.price ASC",
+        "price_desc": "t.price DESC",
+        "nights": "t.nights DESC",
+        "date": "t.date_from ASC",
+        "newest": "t.created_at DESC",
+        "priority": "t.priority DESC, t.price ASC",
+    }
+    order = sorts.get(args.get("sort", "priority"), sorts["priority"])
+
+    page = max(1, args.get("page", 1, type=int))
+    where_sql = " AND ".join(where)
+
+    conn = database.get_db()
+    total = conn.execute(
+        f"SELECT COUNT(*) AS c FROM tours t JOIN destinations d ON d.id = t.destination_id WHERE {where_sql}",
+        params,
+    ).fetchone()["c"]
+    pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, pages)
+    rows = conn.execute(
+        f"""SELECT t.*, d.name AS country_name, d.slug AS country_slug
+            FROM tours t JOIN destinations d ON d.id = t.destination_id
+            WHERE {where_sql} ORDER BY {order}
+            LIMIT ? OFFSET ?""",
+        params + [PER_PAGE, (page - 1) * PER_PAGE],
+    ).fetchall()
+    conn.close()
+    return rows, total, page, pages
+
+
+def tour_to_dict(t):
+    return {
+        "id": t["id"],
+        "title": t["title"],
+        "country": t["country_name"],
+        "country_slug": t["country_slug"],
+        "resort": t["resort"],
+        "hotel_name": t["hotel_name"],
+        "hotel_stars": t["hotel_stars"],
+        "date_from": t["date_from"],
+        "date_to": t["date_to"],
+        "nights": t["nights"],
+        "meal_type": t["meal_type"],
+        "departure_city": t["departure_city"],
+        "vacation_type": t["vacation_type"],
+        "price_display": format_price(t["price"], request.args.get("currency", "RUB")),
+        "persons": t["persons"],
+        "image": url_for("static", filename=t["image"]) if t["image"] else "",
+        "is_special": bool(t["is_special"]),
+        "price_needs_confirmation": bool(t["price_needs_confirmation"]),
+        "url": url_for("tour_page", tour_id=t["id"]),
+    }
+
+
+def filter_options():
+    """Значения для выпадающих списков фильтров (из реальных данных)."""
+    conn = database.get_db()
+    destinations = conn.execute(
+        "SELECT slug, name FROM destinations ORDER BY sort_order").fetchall()
+    cities = [r[0] for r in conn.execute(
+        "SELECT DISTINCT departure_city FROM tours WHERE status='active' ORDER BY 1").fetchall()]
+    meals = [r[0] for r in conn.execute(
+        "SELECT DISTINCT meal_type FROM tours WHERE status='active' AND meal_type != '' ORDER BY 1").fetchall()]
+    vtypes = [r[0] for r in conn.execute(
+        "SELECT DISTINCT vacation_type FROM tours WHERE status='active' ORDER BY 1").fetchall()]
+    conn.close()
+    return destinations, cities, meals, vtypes
+
+
+# ---------------------------------------------------------------------------
+# Публичные страницы
+# ---------------------------------------------------------------------------
+
+@app.route("/")
+def index():
+    return render_template(
+        "index.html",
+        meta_title="Business Travel — путешествия, продуманные до мелочей | Томск",
+        meta_description="Туристическое агентство Business Travel в Томске: организация мероприятий, деловые поездки и индивидуальные путешествия.",
+    )
+
+
+@app.route("/tours")
+def catalog():
+    rows, total, page, pages = query_tours(request.args)
+    destinations, cities, meals, vtypes = filter_options()
+    return render_template(
+        "catalog.html",
+        tours=rows,
+        total=total,
+        page=page,
+        pages=pages,
+        destinations=destinations,
+        departure_cities=cities,
+        meal_types=meals,
+        vacation_types=vtypes,
+        meta_title="Каталог туров — Business Travel",
+        meta_description="Все актуальные предложения Business Travel: фильтры по стране, датам, бюджету, типу отдыха и питанию.",
+    )
+
+
+@app.route("/api/tours")
+def api_tours():
+    try:
+        rows, total, page, pages = query_tours(request.args)
+    except Exception:
+        app.logger.exception("Ошибка запроса каталога")
+        return jsonify({"error": "Не удалось загрузить туры. Попробуйте ещё раз."}), 500
+    return jsonify({
+        "items": [tour_to_dict(t) for t in rows],
+        "total": total,
+        "page": page,
+        "pages": pages,
+    })
+
+
+@app.route("/destinations/<slug>")
+def destination_page(slug):
+    conn = database.get_db()
+    dest = conn.execute("SELECT * FROM destinations WHERE slug = ?", (slug,)).fetchone()
+    if not dest:
+        conn.close()
+        abort(404)
+    tours = conn.execute(
+        """SELECT t.*, d.name AS country_name, d.slug AS country_slug
+           FROM tours t JOIN destinations d ON d.id = t.destination_id
+           WHERE t.destination_id = ? AND t.status = 'active'
+           ORDER BY t.priority DESC, t.price ASC""",
+        (dest["id"],),
+    ).fetchall()
+    conn.close()
+    return render_template(
+        "destination.html",
+        dest=dest,
+        tours=tours,
+        meta_title=f"Туры: {dest['name']} — Business Travel",
+        meta_description=dest["description"],
+    )
+
+
+@app.route("/tours/<int:tour_id>")
+def tour_page(tour_id):
+    conn = database.get_db()
+    tour = conn.execute(
+        """SELECT t.*, d.name AS country_name, d.slug AS country_slug
+           FROM tours t JOIN destinations d ON d.id = t.destination_id
+           WHERE t.id = ? AND t.status = 'active'""",
+        (tour_id,),
+    ).fetchone()
+    if not tour:
+        conn.close()
+        abort(404)
+    similar = conn.execute(
+        """SELECT t.*, d.name AS country_name, d.slug AS country_slug
+           FROM tours t JOIN destinations d ON d.id = t.destination_id
+           WHERE t.destination_id = ? AND t.id != ? AND t.status = 'active'
+           ORDER BY t.priority DESC LIMIT 3""",
+        (tour["destination_id"], tour_id),
+    ).fetchall()
+    conn.close()
+    return render_template(
+        "tour.html",
+        tour=tour,
+        similar=similar,
+        meta_title=f"{tour['title']} — Business Travel",
+        meta_description=f"{tour['title']}: {tour['country_name']}, {tour['resort']}, {tour['nights']} ночей, вылет из {tour['departure_city']}.",
+    )
+
+
+@app.route("/specials")
+def specials():
+    conn = database.get_db()
+    tours = conn.execute(
+        """SELECT t.*, d.name AS country_name, d.slug AS country_slug
+           FROM tours t JOIN destinations d ON d.id = t.destination_id
+           WHERE t.is_special = 1 AND t.status = 'active'
+           ORDER BY t.priority DESC, t.price ASC""").fetchall()
+    conn.close()
+    return render_template(
+        "specials.html",
+        tours=tours,
+        meta_title="Специальные предложения — Business Travel",
+        meta_description="Специальные предложения и актуальные подборки туров агентства Business Travel.",
+    )
+
+
+@app.route("/about")
+def about():
+    return render_template(
+        "about.html",
+        meta_title="О компании — Business Travel",
+        meta_description="Business Travel — туристическое агентство в Томске. Индивидуальный подход и сопровождение на всех этапах поездки.",
+    )
+
+
+@app.route("/events")
+def events():
+    return render_template(
+        "events.html",
+        meta_title="Организация мероприятий — Business Travel",
+        meta_description="Организация корпоративных мероприятий, конференций, форумов и выездных мероприятий: логистика, проживание, трансферы, сопровождение.",
+    )
+
+
+@app.route("/business-travel")
+def business_travel():
+    return render_template(
+        "business_travel.html",
+        meta_title="Деловые поездки — Business Travel",
+        meta_description="Организация деловых поездок для компаний, государственных и муниципальных организаций: билеты, отели, трансферы, отчётные документы.",
+    )
+
+
+@app.route("/corporate")
+def corporate():
+    # Прежний адрес страницы корпоративных клиентов → «Деловые поездки»
+    return redirect(url_for("business_travel"), code=301)
+
+
+@app.route("/individual")
+def individual():
+    return render_template(
+        "individual.html",
+        meta_title="Индивидуальные путешествия — Business Travel",
+        meta_description="Индивидуальные путешествия: вы описываете пожелания, менеджер помогает составить маршрут и сопровождает на всех этапах поездки.",
+    )
+
+
+@app.route("/projects")
+def projects():
+    return render_template(
+        "projects.html",
+        meta_title="Проекты — Business Travel",
+        meta_description="Форматы проектов Business Travel: мероприятия, деловые поездки и индивидуальные путешествия.",
+    )
+
+
+@app.route("/contacts")
+def contacts():
+    return render_template(
+        "contacts.html",
+        meta_title="Контакты — Business Travel",
+        meta_description="Контакты туристического агентства Business Travel в Томске: телефон, адрес, режим работы.",
+    )
+
+
+@app.route("/faq")
+def faq():
+    return render_template(
+        "faq.html",
+        meta_title="Частые вопросы — Business Travel",
+        meta_description="Ответы на частые вопросы о подборе тура, бронировании, оплате и документах.",
+    )
+
+
+@app.route("/privacy")
+def privacy():
+    return render_template(
+        "privacy.html",
+        meta_title="Политика обработки персональных данных — Business Travel",
+        meta_description="Политика обработки персональных данных Business Travel.",
+    )
+
+
+@app.route("/consent")
+def consent():
+    return render_template(
+        "consent.html",
+        meta_title="Согласие на обработку персональных данных — Business Travel",
+        meta_description="Согласие на обработку персональных данных Business Travel.",
+    )
+
+
+@app.route("/terms")
+def terms():
+    return render_template(
+        "terms.html",
+        meta_title="Условия и правила подачи заявки — Business Travel",
+        meta_description="Пользовательские условия и правила подачи заявки Business Travel.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Заявки
+# ---------------------------------------------------------------------------
+
+SERVICE_LABELS = {
+    "events": "Организация мероприятий",
+    "business": "Деловые поездки",
+    "individual": "Индивидуальные путешествия",
+    "other": "Другое",
+}
+
+
+def validate_request_form(data):
+    errors = {}
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+
+    if not name or len(name) > 100:
+        errors["name"] = "Укажите имя (до 100 символов)."
+    digits = re.sub(r"\D", "", phone)
+    if not PHONE_RE.match(phone) or len(digits) < 10 or len(digits) > 15:
+        errors["phone"] = "Укажите корректный телефон, например +7 999 123-45-67."
+    if email and not EMAIL_RE.match(email):
+        errors["email"] = "Проверьте адрес электронной почты."
+    if data.get("contact_pref", "phone") not in ("phone", "whatsapp", "telegram", "email"):
+        errors["contact_pref"] = "Выберите способ связи."
+    if data.get("service") and data["service"] not in SERVICE_LABELS:
+        errors["service"] = "Выберите услугу."
+    if str(data.get("consent_pd")) not in ("1", "true", "on"):
+        errors["consent_pd"] = "Для отправки заявки необходимо согласие на обработку персональных данных."
+    for field in ("country", "dates", "tourists", "budget", "comment"):
+        if len(data.get(field) or "") > 500:
+            errors[field] = "Слишком длинное значение."
+    return errors
+
+
+@app.route("/api/requests", methods=["POST"])
+def create_request():
+    if not request_form_limiter.allow(client_ip()):
+        return jsonify({"error": "Слишком много отправок. Попробуйте позже."}), 429
+
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+    errors = validate_request_form(data)
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    tour_id = data.get("tour_id", type=int) if data.get("tour_id") else None
+    idem = (data.get("idempotency_key") or "").strip() or str(uuid.uuid4())
+
+    # Выбранная услуга сохраняется первой строкой комментария
+    service = (data.get("service") or "").strip()
+    comment = (data.get("comment") or "").strip()
+    if service in SERVICE_LABELS:
+        comment = f"Услуга: {SERVICE_LABELS[service]}." + (f" {comment}" if comment else "")
+
+    conn = database.get_db()
+    if tour_id:
+        exists = conn.execute(
+            "SELECT id FROM tours WHERE id = ? AND status='active'", (tour_id,)).fetchone()
+        if not exists:
+            conn.close()
+            return jsonify({"errors": {"tour_id": "Выбранный тур не найден."}}), 400
+
+    # Идемпотентность: повторная отправка с тем же ключом вернёт существующую заявку
+    existing = conn.execute(
+        "SELECT * FROM requests WHERE idempotency_key = ?", (idem,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({
+            "ok": True,
+            "number": existing["public_number"],
+            "redirect": url_for("request_success", number=existing["public_number"]),
+            "duplicate": True,
+        })
+
+    public_number = database.next_public_number(conn)
+    conn.execute(
+        """INSERT INTO requests (
+            public_number, name, phone, email, contact_pref, country, dates,
+            tourists, budget, comment, tour_id, source_page, consent_pd, idempotency_key
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            public_number,
+            data["name"].strip(),
+            data["phone"].strip(),
+            (data.get("email") or "").strip(),
+            data.get("contact_pref", "phone"),
+            (data.get("country") or "").strip(),
+            (data.get("dates") or "").strip(),
+            (data.get("tourists") or "").strip(),
+            (data.get("budget") or "").strip(),
+            comment,
+            tour_id,
+            (data.get("source_page") or "").strip()[:200],
+            1,
+            idem,
+        ),
+    )
+    conn.commit()
+    saved = conn.execute("SELECT * FROM requests WHERE public_number = ?",
+                         (public_number,)).fetchone()
+
+    tour_title = None
+    if tour_id:
+        row = conn.execute("SELECT title FROM tours WHERE id = ?", (tour_id,)).fetchone()
+        tour_title = row["title"] if row else None
+
+    tg_status = telegram_notify.send_request_notification(saved, tour_title)
+    conn.execute(
+        "UPDATE requests SET telegram_status = ?, telegram_attempts = telegram_attempts + 1 WHERE id = ?",
+        (tg_status, saved["id"]),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "ok": True,
+        "number": public_number,
+        "redirect": url_for("request_success", number=public_number),
+    })
+
+
+@app.route("/request/success/<number>")
+def request_success(number):
+    conn = database.get_db()
+    req = conn.execute(
+        "SELECT * FROM requests WHERE public_number = ?", (number,)).fetchone()
+    conn.close()
+    if not req:
+        abort(404)
+    return render_template(
+        "request_success.html",
+        req=req,
+        meta_title="Заявка отправлена — Business Travel",
+        meta_description="Ваша заявка принята в работу.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Ошибки
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template(
+        "404.html",
+        meta_title="Страница не найдена — Business Travel",
+        meta_description="Запрошенная страница не существует.",
+    ), 404
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template(
+        "404.html",
+        meta_title="Ошибка запроса — Business Travel",
+        meta_description="Запрос не может быть обработан.",
+        error_message=getattr(e, "description", "Ошибка запроса."),
+    ), 400
+
+
+@app.errorhandler(500)
+def server_error(e):
+    app.logger.exception("Внутренняя ошибка сервера")
+    return render_template(
+        "404.html",
+        meta_title="Ошибка сервера — Business Travel",
+        meta_description="Произошла внутренняя ошибка. Попробуйте позже.",
+        error_message="Произошла внутренняя ошибка. Мы уже разбираемся.",
+    ), 500
+
+
+# ---------------------------------------------------------------------------
+# Запуск
+# ---------------------------------------------------------------------------
+
+import admin as admin_module  # noqa: E402
+app.register_blueprint(admin_module.bp)
+
+database.setup()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="127.0.0.1", port=port, debug=False)
